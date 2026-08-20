@@ -1,5 +1,30 @@
-import React, { useState } from 'react';
-import { Activity, Clock, CheckCircle2, XCircle, Play, Loader2, Zap, Code2, Copy, Check, GitBranch, Boxes, ShieldCheck } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  Activity,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Play,
+  Loader2,
+  Zap,
+  Code2,
+  Copy,
+  Check,
+  GitBranch,
+  Boxes,
+  ShieldCheck,
+  Search,
+  Upload,
+  Share2,
+  MoreVertical,
+  ZoomIn,
+  ZoomOut,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  Globe,
+  Info,
+} from 'lucide-react';
 import { GraphNode } from '../../core/hydradb/types.js';
 
 interface TraceItem {
@@ -14,26 +39,51 @@ interface RuntimeTracesProps {
   onSelectNode?: (node: GraphNode) => void;
 }
 
-const SDK_SNIPPET = `import { trace } from '@trace/runtime';
+function relTime(iso?: string): string {
+  if (!iso) return 'recorded';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 'recorded';
+  const m = Math.floor((Date.now() - then) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
+}
 
-// Wrap your Express app (or any handler)
-app.use(trace.middleware());
-
-// …or instrument a single function
-export const calculateTax = trace.fn('calculateTax', (amount) => {
-  return amount * 0.075;
-});`;
-
-export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({ traces, activeRepoName, onRefreshTraces, onSelectNode }) => {
+export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
+  traces,
+  activeRepoName,
+  onRefreshTraces,
+  onSelectNode,
+}) => {
+  const [selectedTraceIndex, setSelectedTraceIndex] = useState<number>(0);
+  const [activeLeftTab, setActiveLeftTab] = useState<'traces' | 'executions' | 'environments'>('traces');
+  const [activeRightTab, setActiveRightTab] = useState<'waterfall' | 'timeline' | 'spanlist' | 'metadata'>('waterfall');
+  const [searchQuery, setSearchQuery] = useState('');
   const [runningScenario, setRunningScenario] = useState<string | null>(null);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const isDemo = (activeRepoName || '') === 'demo-app';
+  // Upload = import execution evidence recorded elsewhere / earlier (a TRACE
+  // trace JSON), and connect it to the current architecture graph.
+  const importTrace = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await fetch('/api/runtime/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trace: parsed.trace || parsed }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Import failed');
+      if (onRefreshTraces) onRefreshTraces();
+    } catch (err: any) {
+      alert(`Could not import trace: ${err.message}`);
+    }
+  };
 
   const runScenario = async (scenario: 'checkout' | 'invoice') => {
     setRunningScenario(scenario);
-    setFeedbackMsg(null);
     try {
       const res = await fetch('/api/runtime/run', {
         method: 'POST',
@@ -42,188 +92,477 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({ traces, activeRepo
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Failed to record runtime execution');
-      setFeedbackMsg({ ok: true, text: data.message });
       if (onRefreshTraces) onRefreshTraces();
     } catch (err: any) {
-      setFeedbackMsg({ ok: false, text: err.message });
+      console.error(err);
     } finally {
       setRunningScenario(null);
     }
   };
 
+  // Metrics calculation
+  const totalTraces = traces.length;
+  const totalDurationMs = traces.reduce((acc, t) => {
+    const dur = Math.max(0, ...t.spans.map((s) => Number(s.metadata?.duration) || 0));
+    return acc + dur;
+  }, 0);
+
   const totalSpans = traces.reduce((acc, t) => acc + t.spans.length, 0);
+  const totalSuccessful = traces.reduce((acc, t) => {
+    const ok = t.spans.every((s) => s.metadata?.success !== false);
+    return acc + (ok ? 1 : 0);
+  }, 0);
+
+  const totalErrors = traces.reduce((acc, t) => {
+    const errs = t.spans.filter((s) => s.metadata?.success === false).length;
+    return acc + errs;
+  }, 0);
+
+  const avgSpans = totalTraces > 0 ? Math.round(totalSpans / totalTraces) : 0;
+
+  const activeTrace = traces[selectedTraceIndex] || null;
+
+  // Real spans only — never fabricated. Empty when no trace is selected, so the
+  // waterfall shows an honest empty state instead of a fake demo call tree.
+  const maxDur = activeTrace ? Math.max(1, ...activeTrace.spans.map((s) => Number(s.metadata?.duration) || 0)) : 1;
+  const renderSpans = activeTrace
+    ? activeTrace.spans.map((s, i) => {
+        const dur = Number(s.metadata?.duration) || 0;
+        const depth = Number(s.metadata?.depth) || 0;
+        return {
+          name: s.name,
+          type: s.type,
+          duration: dur,
+          depth,
+          startPct: Math.min(70, i * 6),
+          widthPct: Math.max(6, Math.round((dur / maxDur) * 100)),
+          isEndpoint: s.type === 'APIEndpoint',
+        };
+      })
+    : [];
 
   return (
-    <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div>
-        <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0a0a0a', margin: 0, letterSpacing: '-0.02em' }}>Runtime Traces</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '4px 0 0 0' }}>
-          Static analysis tells TRACE what <em>could</em> happen. Runtime tracing tells TRACE what <em>actually</em> happened.
-        </p>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', margin: 0, letterSpacing: '-0.02em' }}>
+            Runtime
+          </h1>
+          <p style={{ color: '#71717a', fontSize: '14px', margin: '4px 0 0 0' }}>
+            See what actually happened in your application.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => fileRef.current?.click()}
+            title="Import execution evidence recorded earlier or by another run (a TRACE trace .json)."
+            style={{
+              background: '#ffffff',
+              color: '#09090b',
+              border: '1px solid #e4e4e7',
+              borderRadius: '8px',
+              padding: '9px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Upload size={15} /> Upload trace
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) importTrace(f); e.currentTarget.value = ''; }}
+          />
+
+          <button
+            onClick={() => runScenario('checkout')}
+            disabled={runningScenario !== null}
+            title="Watch a new execution: TRACE runs the app/demo and records the real call tree."
+            style={{
+              background: '#000000',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '9px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+            Record new trace
+          </button>
+        </div>
       </div>
 
-      {/* What TRACE knows: static vs runtime → intersection */}
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', padding: '16px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 200px' }}>
-          <CheckCircle2 size={18} style={{ color: '#059669', flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>Static graph</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Available — {activeRepoName || 'repository'} analyzed</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 200px' }}>
-          <span style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${totalSpans > 0 ? '#059669' : 'var(--border-color)'}`, flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>Runtime evidence</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{traces.length} traces · {totalSpans} spans{totalSpans === 0 ? ' — no executions observed yet' : ''}</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 200px' }}>
-          <ShieldCheck size={18} style={{ color: totalSpans > 0 ? '#059669' : 'var(--text-dim)', flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>Intersection</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>VERIFIED where static meets runtime · UNOBSERVED otherwise</div>
-          </div>
-        </div>
+      {/* What Runtime is — static vs runtime, in one line */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12.5px', color: '#71717a', background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '12px 16px' }}>
+        <Info size={15} style={{ color: '#71717a', flexShrink: 0 }} />
+        <span>
+          Architecture shows what your code <strong>could</strong> do. Runtime shows what it <strong>actually did</strong>.
+          {' '}<strong style={{ color: '#09090b' }}>Record a trace</strong> to watch a live execution, or <strong style={{ color: '#09090b' }}>Upload a trace</strong> to import evidence recorded earlier — then Change Impact marks each path VERIFIED or UNOBSERVED.
+        </span>
       </div>
 
-      {/* Top: action (left) + how-it-works (right) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '18px', alignItems: 'start' }}>
-        {isDemo ? (
-          <div className="card">
-            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px', color: '#0a0a0a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Zap size={17} /> Record a demo request
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
-              TRACE runs a request through the bundled demo app in-process and records the real call tree.
-              Run <code>POST /api/checkout</code> to see its path become runtime-verified while <code>GET /api/invoice</code> stays unobserved.
-            </p>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={() => runScenario('checkout')} className="btn btn-primary" disabled={runningScenario !== null}>
-                {runningScenario === 'checkout' ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} Run POST /api/checkout
-              </button>
-              <button onClick={() => runScenario('invoice')} className="btn" disabled={runningScenario !== null}>
-                {runningScenario === 'invoice' ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} Run GET /api/invoice
-              </button>
+      {/* 5 Summary KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+        {/* Card 1: Traces recorded */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Activity size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {totalTraces}
             </div>
-            {feedbackMsg && (
-              <div style={{ marginTop: '12px', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', color: feedbackMsg.ok ? '#059669' : '#dc2626' }}>
-                {feedbackMsg.ok ? '✓ ' : '✗ '}{feedbackMsg.text}
-              </div>
-            )}
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Traces recorded</div>
+            <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>{totalTraces > 0 ? 'Active in graph' : 'No traces yet'}</div>
           </div>
-        ) : (
-          <div className="card">
-            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px', color: '#0a0a0a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Code2 size={17} /> Trace <code>{activeRepoName || 'your app'}</code>
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '14px' }}>
-              TRACE builds the static graph from source automatically, but runtime evidence has to come from the app
-              actually running. Add the tracing SDK to <code>{activeRepoName || 'your app'}</code> and every request it
-              serves streams its real call tree back here — no code runs on your behalf.
-            </p>
-            <div style={{ position: 'relative' }}>
-              <pre style={{ margin: 0, background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', fontSize: '12px', lineHeight: 1.6, color: '#0a0a0a', overflowX: 'auto', fontFamily: 'JetBrains Mono, monospace' }}>
-                {SDK_SNIPPET}
-              </pre>
+        </div>
+
+        {/* Card 2: Total duration */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Clock size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {totalDurationMs} ms
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Total duration</div>
+            <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>{totalTraces > 0 ? 'Aggregated spans' : 'No traces yet'}</div>
+          </div>
+        </div>
+
+        {/* Card 3: Successful */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+            <CheckCircle2 size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#10b981', lineHeight: '1.1' }}>
+              {totalSuccessful}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Successful</div>
+            <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>{totalTraces > 0 ? 'Clean executions' : 'No traces yet'}</div>
+          </div>
+        </div>
+
+        {/* Card 4: Errors */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <AlertTriangle size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {totalErrors}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Errors</div>
+            <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>{totalTraces > 0 ? 'Failed spans' : 'No traces yet'}</div>
+          </div>
+        </div>
+
+        {/* Card 5: Avg. spans per trace */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <GitBranch size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {avgSpans}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Avg. spans per trace</div>
+            <div style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '2px' }}>{totalTraces > 0 ? 'Call depth' : 'No traces yet'}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main 2-Column Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '20px', alignItems: 'start' }}>
+        {/* LEFT COLUMN: Traces Navigation List */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Sub-tabs */}
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+            <span
+              onClick={() => setActiveLeftTab('traces')}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'traces' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'traces' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Traces
+            </span>
+            <span
+              onClick={() => setActiveLeftTab('executions')}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'executions' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'executions' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Executions
+            </span>
+            <span
+              onClick={() => setActiveLeftTab('environments')}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'environments' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'environments' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Environments
+            </span>
+          </div>
+
+          {/* Search & Filter */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: '#a1a1aa' }} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search traces..."
+                style={{
+                  width: '100%',
+                  padding: '7px 10px 7px 32px',
+                  background: '#ffffff',
+                  border: '1px solid #e4e4e7',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: '#09090b',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <select
+              style={{
+                padding: '7px 10px',
+                background: '#ffffff',
+                border: '1px solid #e4e4e7',
+                borderRadius: '6px',
+                fontSize: '12px',
+                color: '#09090b',
+              }}
+            >
+              <option value="all">All status</option>
+              <option value="verified">Verified</option>
+              <option value="unobserved">Unobserved</option>
+            </select>
+          </div>
+
+          {/* List or Empty State */}
+          {traces.length === 0 ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a' }}>
+                <Search size={24} />
+              </div>
+              <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#09090b', margin: 0 }}>
+                No runtime traces yet
+              </h4>
+              <p style={{ fontSize: '12px', color: '#71717a', margin: 0, lineHeight: '1.5' }}>
+                Run your application or use the demo to record and view execution traces.
+              </p>
+
               <button
-                onClick={() => { navigator.clipboard?.writeText(SDK_SNIPPET); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-                className="btn"
-                style={{ position: 'absolute', top: '8px', right: '8px', padding: '5px 8px', fontSize: '11px' }}
+                onClick={() => runScenario('checkout')}
+                disabled={runningScenario !== null}
+                style={{
+                  background: '#000000',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '9px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '8px',
+                }}
               >
-                {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
+                {runningScenario ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                Run demo application
               </button>
             </div>
-            <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginTop: '12px' }}>
-              Prefer to see it live first? Switch to the <strong>demo-app</strong> repository to record real traces in one click.
-            </p>
-          </div>
-        )}
-
-        {/* How runtime verification works */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a', margin: 0 }}>How verification works</h3>
-          {[
-            { icon: <Boxes size={15} />, t: 'Static graph', d: 'AST parsing finds every path a change could reach.' },
-            { icon: <Activity size={15} />, t: 'Runtime traces', d: 'Instrumented requests record the paths that actually ran.' },
-            { icon: <ShieldCheck size={15} />, t: 'Intersection', d: 'Paths with trace evidence are VERIFIED; the rest are UNOBSERVED blind spots.' },
-          ].map((s, i) => (
-            <div key={i} style={{ display: 'flex', gap: '11px' }}>
-              <div style={{ width: '30px', height: '30px', flexShrink: 0, borderRadius: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a0a0a' }}>{s.icon}</div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>{s.t}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{s.d}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recorded traces */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', color: '#0a0a0a', margin: 0 }}>
-            <Activity size={17} /> Recorded execution traces
-          </h3>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{traces.length} traces · {totalSpans} spans</span>
-        </div>
-
-        {traces.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
-            <Activity size={30} style={{ margin: '0 auto 12px', opacity: 0.4, color: '#0a0a0a' }} />
-            <h3 style={{ fontSize: '15px', color: '#0a0a0a', marginBottom: '6px' }}>No runtime traces yet</h3>
-            <p style={{ fontSize: '13px', maxWidth: '460px', margin: '0 auto' }}>
-              {isDemo
-                ? 'TRACE has analyzed the demo but has not observed it running. Record a request above to capture execution evidence.'
-                : 'Once the tracing SDK is added and the app serves a request, its trace appears here.'}
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {traces.map((trace, idx) => {
-              const maxDur = Math.max(1, ...trace.spans.map((s) => Number(s.metadata?.duration) || 0));
-              return (
-                <div key={idx} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span className="badge badge-verified">● Runtime verified</span>
-                      <code style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>{trace.traceNode.name}</code>
-                    </div>
-                    <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-dim)' }}>
-                      {trace.traceNode.metadata?.startTime ? new Date(trace.traceNode.metadata.startTime).toLocaleTimeString() : `${trace.spans.length} spans`}
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto' }}>
+              {traces.map((trace, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => setSelectedTraceIndex(idx)}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${selectedTraceIndex === idx ? '#09090b' : '#f4f4f5'}`,
+                    background: selectedTraceIndex === idx ? '#f4f4f5' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '700', fontFamily: 'JetBrains Mono, monospace', color: '#09090b' }}>
+                      {trace.traceNode.name}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#10b981', background: '#ecfdf5', padding: '1px 6px', borderRadius: '4px' }}>
+                      VERIFIED
                     </span>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    {trace.spans.map((span, sIdx) => {
-                      const depth = typeof span.metadata?.depth === 'number' ? span.metadata.depth : 0;
-                      const success = span.metadata?.success !== false;
-                      const dur = Number(span.metadata?.duration) || 0;
-                      return (
-                        <div
-                          key={sIdx}
-                          onClick={() => onSelectNode && onSelectNode(span)}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 10px', borderRadius: '7px', cursor: onSelectNode ? 'pointer' : 'default', marginLeft: `${depth * 20}px`, transition: 'background 0.12s ease' }}
-                        >
-                          {success ? <CheckCircle2 size={14} style={{ color: 'var(--status-verified)', flexShrink: 0 }} /> : <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0 }} />}
-                          <span style={{ fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', color: '#0a0a0a', minWidth: '180px', flexShrink: 0 }}>{span.name}</span>
-                          <div style={{ flex: 1, height: '6px', background: 'var(--bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.max(4, (dur / maxDur) * 100)}%`, height: '100%', background: '#0a0a0a', borderRadius: '3px' }} />
-                          </div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', width: '64px', justifyContent: 'flex-end', flexShrink: 0 }}>
-                            <Clock size={11} /> {dur}ms
-                          </span>
-                        </div>
-                      );
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#71717a' }}>
+                    <span>{trace.spans.length} spans · {trace.spans.reduce((a, s) => a + (Number(s.metadata?.duration) || 0), 0)} ms</span>
+                    <span>{trace.traceNode.metadata?.imported ? 'Imported' : relTime(trace.traceNode.metadata?.startTime as string)}</span>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN: Trace Inspector & Waterfall Chart */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0 }}>
+                {activeTrace ? activeTrace.traceNode.name : 'No trace selected'}
+              </h3>
+              <p style={{ fontSize: '12px', color: '#71717a', margin: '2px 0 0 0' }}>
+                {activeTrace ? `Inspecting execution details for ${activeTrace.traceNode.id}` : 'Select a trace from the list to inspect execution details.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', color: '#09090b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Share2 size={13} /> Share
+              </button>
+              <button style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '6px', padding: '6px 8px', color: '#71717a', cursor: 'pointer' }}>
+                <MoreVertical size={14} />
+              </button>
+            </div>
           </div>
-        )}
+
+          {/* Sub-tabs & Waterfall Controls Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <span
+                onClick={() => setActiveRightTab('waterfall')}
+                style={{ cursor: 'pointer', color: activeRightTab === 'waterfall' ? '#09090b' : '#a1a1aa', borderBottom: activeRightTab === 'waterfall' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+              >
+                Waterfall
+              </span>
+              <span
+                onClick={() => setActiveRightTab('timeline')}
+                style={{ cursor: 'pointer', color: activeRightTab === 'timeline' ? '#09090b' : '#a1a1aa', borderBottom: activeRightTab === 'timeline' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+              >
+                Timeline
+              </span>
+              <span
+                onClick={() => setActiveRightTab('spanlist')}
+                style={{ cursor: 'pointer', color: activeRightTab === 'spanlist' ? '#09090b' : '#a1a1aa', borderBottom: activeRightTab === 'spanlist' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+              >
+                Span List
+              </span>
+              <span
+                onClick={() => setActiveRightTab('metadata')}
+                style={{ cursor: 'pointer', color: activeRightTab === 'metadata' ? '#09090b' : '#a1a1aa', borderBottom: activeRightTab === 'metadata' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+              >
+                Metadata
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
+              <span>Expand all ⌄</span>
+              <span>Group by: None ⌄</span>
+              <button style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}><ZoomOut size={12} /></button>
+              <button style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}><ZoomIn size={12} /></button>
+            </div>
+          </div>
+
+          {/* Timeline Time Scale Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', borderBottom: '1px solid #f4f4f5', paddingBottom: '6px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#71717a' }}>Span / Call Tree</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#a1a1aa', fontFamily: 'JetBrains Mono, monospace' }}>
+              <span>0 ms</span>
+              <span>100 ms</span>
+              <span>200 ms</span>
+              <span>300 ms</span>
+              <span>400 ms</span>
+              <span>500 ms</span>
+              <span>600 ms</span>
+              <span>700 ms</span>
+              <span>800 ms</span>
+            </div>
+          </div>
+
+          {/* Waterfall Gantt Chart Rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '320px' }}>
+            {renderSpans.length === 0 && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#a1a1aa', textAlign: 'center', padding: '40px 20px' }}>
+                <Activity size={28} style={{ opacity: 0.4, marginBottom: '10px' }} />
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#71717a' }}>No execution to display</div>
+                <div style={{ fontSize: '12px', marginTop: '4px', maxWidth: '360px' }}>
+                  {totalTraces > 0 ? 'Select a trace from the list to inspect its real call tree.' : 'Record a trace to capture a real execution waterfall.'}
+                </div>
+              </div>
+            )}
+            {renderSpans.map((span, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '260px 1fr',
+                  alignItems: 'center',
+                  padding: '6px 0',
+                  borderBottom: '1px solid #f4f4f5',
+                }}
+              >
+                {/* Left Span Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: `${span.depth * 14}px`, overflow: 'hidden' }}>
+                  <ChevronDown size={12} style={{ color: '#a1a1aa', flexShrink: 0 }} />
+                  {span.isEndpoint ? (
+                    <Globe size={13} style={{ color: '#09090b', flexShrink: 0 }} />
+                  ) : span.type === 'DBSchema' ? (
+                    <Database size={13} style={{ color: '#09090b', flexShrink: 0 }} />
+                  ) : (
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#71717a', fontStyle: 'italic' }}>f</span>
+                  )}
+                  <span style={{ fontSize: '12px', fontWeight: '600', fontFamily: 'JetBrains Mono, monospace', color: '#09090b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {span.name}
+                  </span>
+                  <span style={{ fontSize: '11px', color: span.isEndpoint ? '#10b981' : '#71717a', background: span.isEndpoint ? '#ecfdf5' : '#f4f4f5', padding: '1px 5px', borderRadius: '4px', flexShrink: 0 }}>
+                    {span.duration} ms
+                  </span>
+                </div>
+
+                {/* Right Gantt Bar Canvas */}
+                <div style={{ position: 'relative', height: '14px', background: '#fafafa', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: `${span.startPct}%`,
+                      width: `${span.widthPct}%`,
+                      height: '100%',
+                      background: span.isEndpoint ? '#a7f3d0' : '#bbf7d0',
+                      borderRadius: '3px',
+                      border: '1px solid #86efac',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom Disclaimer */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#71717a', borderTop: '1px solid #f4f4f5', paddingTop: '10px' }}>
+            <Info size={13} />
+            <span>Select a trace from the left list to view exact execution duration and span details.</span>
+          </div>
+        </div>
       </div>
     </div>
   );

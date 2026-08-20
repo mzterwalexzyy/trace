@@ -534,6 +534,48 @@ app.post('/api/runtime/run', async (req, res) => {
   }
 });
 
+// API: Import an existing runtime trace (a previously-recorded TRACE session).
+// This is the "Upload trace" path — bring execution evidence recorded elsewhere
+// (or earlier) and connect it to the current architecture graph. Accepts the
+// TRACE trace shape: { traceNode, spans }. Spans link to static symbols by name.
+app.post('/api/runtime/import', (req, res) => {
+  try {
+    const trace = req.body?.trace || req.body;
+    const traceNode = trace?.traceNode;
+    const spans = Array.isArray(trace?.spans) ? trace.spans : [];
+    if (!traceNode || !traceNode.name || spans.length === 0) {
+      return res.status(400).json({ error: 'Invalid trace file. Expected { traceNode, spans } from a recorded TRACE session.' });
+    }
+    const traceId = `trace_import_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    dbClient.upsertNode({
+      id: traceId,
+      type: 'TraceRequest',
+      name: String(traceNode.name),
+      metadata: { ...(traceNode.metadata || {}), status: 'COMPLETED', imported: true, importedAt: new Date().toISOString() },
+    });
+    let count = 0;
+    for (const s of spans) {
+      if (!s?.name) continue;
+      const spanId = `span_${traceId}_${count}`;
+      dbClient.upsertNode({
+        id: spanId,
+        type: 'ExecutionSpan',
+        name: String(s.name),
+        metadata: { duration: Number(s.metadata?.duration ?? s.duration) || 0, functionName: s.metadata?.functionName || s.name, success: s.metadata?.success !== false, order: count, depth: Number(s.metadata?.depth ?? s.depth) || 0, imported: true },
+      });
+      dbClient.addEdge({ from: traceId, to: spanId, type: 'PARENT_OF' });
+      // Connect to the static symbol so VERIFIED/UNOBSERVED intersection works.
+      const staticNode = dbClient.findNodes((n) => (n.type === 'Function' || n.type === 'Method') && n.name === s.name)[0];
+      if (staticNode) dbClient.addEdge({ from: spanId, to: staticNode.id, type: 'EXECUTED_FUNCTION' });
+      count++;
+    }
+    dbClient.saveState();
+    return res.json({ success: true, traceId, spanCount: count, message: `Imported ${count} spans for ${traceNode.name}.` });
+  } catch (err: any) {
+    return res.status(500).json({ error: `Trace import failed: ${err.message}` });
+  }
+});
+
 // API 8: Change Impact Report for Target Symbol
 app.get('/api/impact/:symbol', async (req, res) => {
   try {

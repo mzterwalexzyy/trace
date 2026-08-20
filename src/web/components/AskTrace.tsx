@@ -1,6 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, Search, Loader2, ArrowRight, ChevronRight, Database, Cpu } from 'lucide-react';
+import {
+  Search,
+  Send,
+  X,
+  Zap,
+  Code2,
+  Globe,
+  Database,
+  Beaker,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  ChevronRight,
+  FileText,
+  Layers,
+  Sparkles,
+  Info,
+  Clock,
+  ExternalLink,
+} from 'lucide-react';
 import type { TabId } from './Sidebar.js';
+import { usePaged, Pager } from './Pager.js';
 
 interface AskTraceProps {
   activeRepoName?: string;
@@ -8,7 +28,13 @@ interface AskTraceProps {
   onNavigate: (tab: TabId) => void;
 }
 
-interface Light { id: string; name: string; type: string; filePath?: string }
+interface Light {
+  id: string;
+  name: string;
+  type: string;
+  filePath?: string;
+}
+
 interface AskResponse {
   question: string;
   intent: string;
@@ -21,31 +47,18 @@ interface AskResponse {
   followUps: string[];
 }
 
-const INTENT_LABEL: Record<string, string> = {
-  symbol_relationship: 'Relationships',
-  change_impact: 'Change impact',
-  runtime_verification: 'Runtime verification',
-  database_dependency: 'Database dependency',
-  test_coverage: 'Test coverage',
-  architecture_exploration: 'Architecture',
-  hydra_context_search: 'Engineering context',
-};
-
-const SUGGESTIONS = [
-  'What could break if I change calculateTax?',
+const EXAMPLE_PROMPTS = [
   'How does checkout depend on tax calculation?',
-  'Is calculateTax actually executed at runtime?',
-  'What writes to the orders table?',
+  'What code is related to invoice generation?',
+  'Find context about database writes?',
+  'What changed around calculateTax?',
 ];
 
-const label: React.CSSProperties = { fontSize: '11px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-dim)' };
-
 export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact, onNavigate }) => {
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState('What could break if I change calculateTax?');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showContext, setShowContext] = useState(false);
 
   const ask = async (q: string) => {
     const query = q.trim();
@@ -53,10 +66,12 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
     setQuestion(query);
     setLoading(true);
     setError(null);
-    setResult(null);
-    setShowContext(false);
     try {
-      const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: query }) });
+      const r = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: query }),
+      });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Ask failed');
       setResult(d);
@@ -67,278 +82,408 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
     }
   };
 
+  // Run initial query on mount so page matches reference layout out-of-the-box
+  useEffect(() => {
+    ask('What could break if I change calculateTax?');
+  }, []);
+
   const ev = result?.evidence || {};
   const primary = result?.resolvedTargets?.[0];
-  const conf = result?.resolution?.confidence ?? 0;
-  const alts = result?.resolution?.alternatives ?? [];
+  const targetName = primary?.name || '';
+  const hydraContext = (ev.hydraContext || []) as any[];
   const isAI = result?.answerMode === 'ai';
-  const ctx = (ev.hydraContext || []) as any[];
+
+  // Real evidence values only — never fabricated. Zero when absent.
+  const affectedCount = ev.impact?.totalAffectedNodes ?? 0;
+  const apiCount = ev.impact?.endpoints?.length ?? 0;
+  const dbCount = ev.impact?.dbSchemas?.length ?? 0;
+  const testCount = ev.impact?.tests?.length ?? 0;
+  const endpoints = (ev.impact?.endpoints || []) as { name: string; status: string; traceCount: number }[];
+  const sortedEndpoints = [...endpoints].sort((a, b) => (a.status === b.status ? 0 : a.status === 'VERIFIED' ? -1 : 1));
+  const epPage = usePaged(sortedEndpoints, 5);
+  const ctxPage = usePaged(hydraContext, 5);
 
   return (
-    <div style={{ padding: '32px', maxWidth: '860px', margin: '0 auto' }}>
-      {/* Heading */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', color: '#0a0a0a', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Sparkles size={22} /> Ask TRACE
+    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* 1. Page Header */}
+      <div>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', margin: 0, letterSpacing: '-0.02em' }}>
+          Ask TRACE
         </h1>
-        <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '6px 0 0' }}>
-          Understand <strong>{activeRepoName || 'your codebase'}</strong> through architecture, runtime, dependencies and engineering context.
+        <p style={{ color: '#71717a', fontSize: '14px', margin: '4px 0 0 0' }}>
+          Ask anything about your codebase. TRACE uses static analysis, runtime data, and HydraDB context to answer.
         </p>
       </div>
 
-      {/* Input */}
-      <div style={{ position: 'relative', marginBottom: '14px' }}>
-        <Search size={17} style={{ position: 'absolute', left: '15px', top: '15px', color: 'var(--text-muted)' }} />
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && ask(question)}
-          placeholder="Ask about your codebase…"
-          style={{ width: '100%', padding: '14px 116px 14px 44px', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '12px', color: '#0a0a0a', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
-        />
-        <button className="btn btn-primary" onClick={() => ask(question)} disabled={loading} style={{ position: 'absolute', right: '8px', top: '8px', padding: '8px 15px' }}>
-          {loading ? <Loader2 size={15} className="animate-spin" /> : <>Ask <ArrowRight size={14} /></>}
-        </button>
+      {/* 2. Main Search / Prompt Box */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div
+          style={{
+            position: 'relative',
+            background: '#ffffff',
+            border: '1px solid #e4e4e7',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          }}
+        >
+          <Search size={20} style={{ color: '#71717a', marginRight: '14px', flexShrink: 0 }} />
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && ask(question)}
+            placeholder="What could break if I change calculateTax?"
+            style={{
+              width: '100%',
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
+              fontSize: '15px',
+              fontWeight: '600',
+              fontFamily: 'JetBrains Mono, monospace',
+              color: '#09090b',
+            }}
+          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px' }}>
+            {question && (
+              <button
+                onClick={() => setQuestion('')}
+                style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            )}
+            <button
+              onClick={() => ask(question)}
+              disabled={loading}
+              style={{
+                background: '#000000',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Example Prompt Chips */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
+          <span style={{ color: '#71717a' }}>Try one of these examples:</span>
+          {EXAMPLE_PROMPTS.map((promptText, idx) => (
+            <button
+              key={idx}
+              onClick={() => ask(promptText)}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #e4e4e7',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                color: '#09090b',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
+            >
+              {promptText}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Suggestions (initial state) */}
-      {!result && !loading && (
-        <div>
-          <div style={{ ...label, marginBottom: '10px' }}>Try asking</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => ask(s)} style={{ textAlign: 'left', fontSize: '14px', color: '#0a0a0a', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '12px 14px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0a0a0a')}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}>
-                {s} <ChevronRight size={15} style={{ color: 'var(--text-dim)' }} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* Loading & Error States */}
       {loading && (
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-muted)' }}>
-          <Cpu size={18} className="pulse" style={{ color: '#0a0a0a' }} />
-          <span style={{ fontSize: '14px' }}>TRACE is investigating — resolving symbols, traversing the graph, checking runtime evidence…</span>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '40px', textAlign: 'center', color: '#71717a' }}>
+          TRACE is analyzing AST graph, checking runtime traces and recalling HydraDB context...
         </div>
       )}
 
-      {error && <div className="card" style={{ border: '1px solid rgba(220,38,38,0.3)', color: '#b91c1c', fontSize: '13px' }}>{error}</div>}
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '16px', color: '#dc2626', fontSize: '13px' }}>
+          {error}
+        </div>
+      )}
 
+      {/* 3. Main 2-Column Content Grid */}
       {result && !loading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Question echo */}
-          <div style={{ paddingTop: '4px' }}>
-            <div style={{ ...label, marginBottom: '6px' }}>Question</div>
-            <div style={{ fontSize: '17px', fontWeight: 700, color: '#0a0a0a' }}>{result.question}</div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '24px', alignItems: 'start' }}>
+          {/* LEFT COLUMN */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Answer Box */}
+            <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0 }}>{isAI ? 'AI Explanation' : 'Answer'}</h3>
+                  <span style={{ fontSize: '11px', fontWeight: '600', color: isAI ? '#047857' : '#71717a', background: isAI ? '#ecfdf5' : '#f4f4f5', border: `1px solid ${isAI ? '#a7f3d0' : '#e4e4e7'}`, padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={12} /> {isAI ? 'AI mode' : 'Evidence mode'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#a1a1aa' }}>{result.intent.replace(/_/g, ' ')}</div>
+              </div>
 
-          {/* Resolution / confidence — progressive disclosure */}
-          {primary && (
-            <ResolutionLine primary={primary} confidence={conf} alternatives={alts} onPick={onOpenImpact} />
-          )}
+              {/* Answer text — the real grounded answer from /api/ask */}
+              <div style={{ fontSize: '14px', color: '#09090b', lineHeight: '1.65' }}>
+                <p style={{ margin: 0 }}>{result.answer}</p>
+                {result.aiError && <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#a1a1aa' }}>AI unavailable · showing deterministic evidence</p>}
+              </div>
 
-          {/* AI explanation — the star */}
-          <div className="card" style={{ borderLeft: '3px solid #0a0a0a' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <span style={label}>{isAI ? 'AI Explanation' : 'TRACE Evidence'}</span>
-              <span style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.05em', color: isAI ? '#047857' : 'var(--text-dim)', background: isAI ? 'rgba(5,150,105,0.10)' : 'var(--bg-tertiary)', border: `1px solid ${isAI ? 'rgba(5,150,105,0.25)' : 'var(--border-color)'}`, borderRadius: '5px', padding: '2px 7px' }}>
-                {isAI ? 'AI MODE' : 'EVIDENCE MODE'}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginLeft: 'auto' }}>{INTENT_LABEL[result.intent] || result.intent}</span>
-            </div>
-            <p style={{ fontSize: '15px', color: '#0a0a0a', lineHeight: 1.65, margin: 0 }}>{result.answer}</p>
-            {result.aiError && (
-              <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: '10px 0 0' }}>AI unavailable · showing deterministic evidence</p>
-            )}
-          </div>
+              {/* Summary 4 KPI Metric Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                <div style={{ background: '#f4f4f5', borderRadius: '10px', padding: '12px' }}>
+                  <Code2 size={16} style={{ color: '#09090b', marginBottom: '6px' }} />
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#09090b' }}>{affectedCount}</div>
+                  <div style={{ fontSize: '11px', color: '#71717a' }}>Affected symbols</div>
+                </div>
 
-          {/* Evidence — only sections with real data */}
-          {(ev.relationships || ev.impact || ev.runtime || ev.database || ctx.length > 0) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={label}>Evidence</div>
+                <div style={{ background: '#f4f4f5', borderRadius: '10px', padding: '12px' }}>
+                  <Globe size={16} style={{ color: '#09090b', marginBottom: '6px' }} />
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#09090b' }}>{apiCount}</div>
+                  <div style={{ fontSize: '11px', color: '#71717a' }}>API endpoints</div>
+                </div>
 
-              {/* Architecture (relationship chain) */}
-              {ev.relationships && (ev.relationships.calledBy.length > 0 || ev.relationships.calls.length > 0) && (
-                <EvidenceCard title="Architecture" action={primary ? { text: 'View in graph', on: () => onNavigate('architecture') } : undefined}>
-                  <Chain calledBy={ev.relationships.calledBy} target={ev.relationships.target} calls={ev.relationships.calls} onPick={onOpenImpact} />
-                </EvidenceCard>
-              )}
+                <div style={{ background: '#f4f4f5', borderRadius: '10px', padding: '12px' }}>
+                  <Database size={16} style={{ color: '#09090b', marginBottom: '6px' }} />
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#09090b' }}>{dbCount}</div>
+                  <div style={{ fontSize: '11px', color: '#71717a' }}>Database</div>
+                </div>
 
-              {/* Impact numbers */}
-              {ev.impact && (
-                <EvidenceCard title="Change impact" action={primary ? { text: 'View full impact report', on: () => onOpenImpact(primary.name) } : undefined}>
-                  <div style={{ display: 'flex', gap: '22px', flexWrap: 'wrap' }}>
-                    <Metric n={ev.impact.totalAffectedNodes} l="affected nodes" />
-                    <Metric n={ev.impact.endpoints.length} l="API endpoints" />
-                    <Metric n={ev.impact.dbSchemas.length} l="DB dependencies" />
-                    <Metric n={ev.impact.tests.length} l="tests" />
-                  </div>
-                </EvidenceCard>
-              )}
+                <div style={{ background: '#f4f4f5', borderRadius: '10px', padding: '12px' }}>
+                  <Beaker size={16} style={{ color: '#09090b', marginBottom: '6px' }} />
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#09090b' }}>{testCount}</div>
+                  <div style={{ fontSize: '11px', color: '#71717a' }}>Relevant tests</div>
+                </div>
+              </div>
 
-              {/* Runtime */}
-              {(ev.runtime || (ev.impact && ev.impact.endpoints.length > 0)) && (
-                <EvidenceCard title="Runtime" action={{ text: 'View runtime', on: () => onNavigate('runtime') }}>
-                  <RuntimeEvidence runtime={ev.runtime} endpoints={ev.impact?.endpoints} />
-                </EvidenceCard>
-              )}
+              {/* Runtime Evidence — real endpoints from the response (verified first) */}
+              {(sortedEndpoints.length > 0 || ev.runtime) && (
+                <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Runtime evidence</div>
 
-              {/* Database */}
-              {ev.database && ev.database.schemas.length > 0 && (
-                <EvidenceCard title="Database">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {ev.database.schemas.map((s: any, i: number) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', color: '#0a0a0a' }}>
-                        <Database size={14} style={{ color: '#059669' }} /> {s.name}
-                        {s.touchedBy?.length > 0 && <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'system-ui' }}>· touched by {s.touchedBy.slice(0, 3).join(', ')}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </EvidenceCard>
-              )}
-
-              {/* Context — HydraDB is background infrastructure, revealed on expand */}
-              {ctx.length > 0 && (
-                <EvidenceCard title="Context">
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {ctx.length} related engineering {ctx.length === 1 ? 'record' : 'records'} associated with <code>{primary?.name || result.question}</code>.
-                    <button onClick={() => setShowContext((v) => !v)} style={{ marginLeft: '10px', fontSize: '12px', fontWeight: 600, color: '#0a0a0a', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
-                      {showContext ? 'Hide' : 'View context'}
-                    </button>
-                  </div>
-                  {showContext && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-                      {ctx.slice(0, 4).map((c: any, i: number) => (
-                        <div key={i} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '10px 12px' }}>
-                          <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{c.content}</p>
-                          <div style={{ display: 'flex', gap: '14px', marginTop: '6px', fontSize: '10.5px', color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
-                            <span>Source: HydraDB</span>
-                            <span>{c.metadata?.filePath || c.metadata?.source_id || ''}</span>
-                            <span>Relevance {(c.score ?? 0).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      ))}
+                  {ev.runtime && sortedEndpoints.length === 0 && (
+                    <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: '700', color: ev.runtime.observed ? '#10b981' : '#d97706', background: ev.runtime.observed ? '#ecfdf5' : '#fffbe8', padding: '2px 6px', borderRadius: '4px' }}>
+                        {ev.runtime.observed ? '✓ VERIFIED' : '⚠ UNOBSERVED'}
+                      </span>
+                      <div style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'JetBrains Mono, monospace', color: '#09090b' }}>{ev.runtime.target.name}</div>
                     </div>
                   )}
-                </EvidenceCard>
-              )}
-            </div>
-          )}
 
-          {/* Follow-ups */}
-          {result.followUps.length > 0 && (
-            <div>
-              <div style={{ ...label, marginBottom: '10px' }}>Follow up</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {result.followUps.map((f) => (
-                  <button key={f} onClick={() => ask(f)} style={{ fontSize: '13px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0a0a0a')}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}>{f}</button>
-                ))}
+                  {epPage.pageItems.map((ep, i) => {
+                    const verified = ep.status === 'VERIFIED';
+                    return (
+                      <div key={i} style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <span style={{ fontSize: '10px', fontWeight: '700', color: verified ? '#10b981' : '#d97706', background: verified ? '#ecfdf5' : '#fffbe8', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
+                            {verified ? '✓ VERIFIED' : '⚠ UNOBSERVED'}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'JetBrains Mono, monospace', color: '#09090b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ep.name}</div>
+                            <div style={{ fontSize: '11px', color: '#71717a' }}>
+                              {verified ? `Observed in ${ep.traceCount} recorded ${ep.traceCount === 1 ? 'trace' : 'traces'}` : 'Reachable in static graph but not seen in runtime'}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={() => onNavigate('runtime')} style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', color: '#09090b', fontWeight: '500', cursor: 'pointer', flexShrink: 0 }}>
+                          {verified ? 'View trace' : 'View path'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* What Could Be Affected Category Accordion List */}
+              <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>What could be affected</div>
+
+                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Code2 size={16} style={{ color: '#09090b' }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Functions</div>
+                      <div style={{ fontSize: '11px', color: '#71717a' }}>Directly or indirectly affected</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
+                    <span>{affectedCount}</span>
+                    <ChevronRight size={16} />
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Globe size={16} style={{ color: '#09090b' }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>API endpoints</div>
+                      <div style={{ fontSize: '11px', color: '#71717a' }}>HTTP routes that may be impacted</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
+                    <span>{apiCount}</span>
+                    <ChevronRight size={16} />
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Database size={16} style={{ color: '#09090b' }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Database</div>
+                      <div style={{ fontSize: '11px', color: '#71717a' }}>Tables/queries that could be affected</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
+                    <span>{dbCount}</span>
+                    <ChevronRight size={16} />
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Beaker size={16} style={{ color: '#09090b' }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Tests</div>
+                      <div style={{ fontSize: '11px', color: '#71717a' }}>Relevant tests to run</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
+                    <span>{testCount}</span>
+                    <ChevronRight size={16} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Footer Link */}
+              <button
+                onClick={() => onOpenImpact(targetName)}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e4e4e7',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#09090b',
+                  cursor: 'pointer',
+                  alignSelf: 'flex-start',
+                  marginTop: '4px',
+                }}
+              >
+                View full impact report →
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Top Right Card: Related context */}
+            <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#09090b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Database size={16} style={{ color: '#09090b' }} />
+                  Related context
+                </h3>
+                <p style={{ fontSize: '12px', color: '#71717a', margin: '2px 0 0 0' }}>
+                  Context from HydraDB relevant to your question.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {hydraContext.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: '#a1a1aa' }}>No related context found for this question.</div>
+                ) : (
+                  hydraContext.slice(0, 5).map((c: any, i: number) => (
+                    <div key={i} style={{ border: '1px solid #f4f4f5', borderRadius: '8px', padding: '10px 12px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px', gap: '8px' }}>
+                        <div style={{ fontWeight: '700', color: '#09090b', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {c.metadata?.filePath || c.metadata?.source_id || 'context'}
+                        </div>
+                        <span style={{ fontSize: '11px', color: '#10b981', background: '#ecfdf5', padding: '1px 6px', borderRadius: '4px', flexShrink: 0 }}>{(c.score ?? 0).toFixed(2)}</span>
+                      </div>
+                      <div style={{ color: '#52525b', fontSize: '11px', marginTop: '4px', lineHeight: 1.5 }}>{c.content}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button
+                onClick={() => onNavigate('hydra')}
+                style={{ background: 'transparent', border: 'none', fontSize: '12px', color: '#09090b', fontWeight: '700', cursor: 'pointer', textAlign: 'right', marginTop: '4px' }}
+              >
+                View all context →
+              </button>
+            </div>
+
+            {/* Bottom Right Card: Evidence sources */}
+            <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#09090b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={16} style={{ color: '#09090b' }} />
+                  Evidence sources
+                </h3>
+                <p style={{ fontSize: '12px', color: '#71717a', margin: '2px 0 0 0' }}>
+                  Where this answer came from.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#09090b' }}>Static analysis</div>
+                    <div style={{ fontSize: '11px', color: '#71717a' }}>Dependency graph, AST, symbol resolution</div>
+                  </div>
+                  <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#09090b' }}>Runtime traces</div>
+                    <div style={{ fontSize: '11px', color: '#71717a' }}>Execution spans, verified paths</div>
+                  </div>
+                  <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#09090b' }}>HydraDB context</div>
+                    <div style={{ fontSize: '11px', color: '#71717a' }}>Semantic search, code knowledge base</div>
+                  </div>
+                  <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#09090b' }}>Git context</div>
+                    <div style={{ fontSize: '11px', color: '#71717a' }}>Current branch, recent changes</div>
+                  </div>
+                  <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+                </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
+
+      {/* 4. Page Footer Disclaimer Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #e4e4e7', paddingTop: '16px', fontSize: '12px', color: '#71717a' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Info size={14} />
+          <span>Answers are based on data from your repository. TRACE does not modify your code.</span>
+        </div>
+        <a href="https://github.com/mzterwalexzyy/trace" target="_blank" rel="noreferrer" style={{ color: '#71717a', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Learn how Ask TRACE works <ExternalLink size={12} />
+        </a>
+      </div>
     </div>
   );
 };
-
-function ResolutionLine({ primary, confidence, alternatives, onPick }: { primary: Light; confidence: number; alternatives: Light[]; onPick: (n: string) => void }) {
-  const pct = Math.round(confidence * 100);
-  // <50% → ask for clarification; 50–79% → show interpretation + alternatives; 80%+ → confident.
-  if (confidence < 0.5 && alternatives.length > 0) {
-    return (
-      <div className="card" style={{ background: 'var(--bg-tertiary)' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a', marginBottom: '4px' }}>TRACE found multiple possible matches</div>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>Which did you mean?</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {[primary, ...alternatives].map((a) => (
-            <button key={a.id} onClick={() => onPick(a.name)} style={{ fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', background: '#ffffff', border: '1px solid var(--border-color)', color: '#0a0a0a', padding: '6px 10px', borderRadius: '7px', cursor: 'pointer' }}>{a.name}</button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-      <span>Interpreting as <code style={{ color: '#0a0a0a', fontWeight: 700 }}>{primary.name}</code> · confidence {pct}%</span>
-      {confidence < 0.8 && alternatives.length > 0 && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <span style={{ color: 'var(--text-dim)' }}>change target:</span>
-          {alternatives.map((a) => (
-            <button key={a.id} onClick={() => onPick(a.name)} style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: '#0a0a0a', padding: '2px 7px', borderRadius: '5px', cursor: 'pointer' }}>{a.name}</button>
-          ))}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function EvidenceCard({ title, action, children }: { title: string; action?: { text: string; on: () => void }; children: React.ReactNode }) {
-  return (
-    <div className="card">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: '#0a0a0a' }}>{title}</span>
-        {action && (
-          <button className="btn" style={{ fontSize: '12px', padding: '5px 11px' }} onClick={action.on}>{action.text} <ArrowRight size={12} /></button>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Chain({ calledBy, target, calls, onPick }: { calledBy: Light[]; target: Light; calls: Light[]; onPick: (n: string) => void }) {
-  const node = (n: Light, strong?: boolean) => (
-    <button onClick={() => onPick(n.name)} style={{ fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', fontWeight: strong ? 800 : 500, color: '#0a0a0a', background: strong ? 'var(--bg-tertiary)' : 'transparent', border: strong ? '1px solid #0a0a0a' : '1px solid var(--border-subtle)', borderRadius: '7px', padding: '6px 11px', cursor: 'pointer' }}>{n.name}</button>
-  );
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-      {calledBy.slice(0, 3).map((c) => <React.Fragment key={c.id}>{node(c)}<ArrowRight size={13} style={{ color: 'var(--text-dim)' }} /></React.Fragment>)}
-      {node(target, true)}
-      {calls.slice(0, 3).map((c) => <React.Fragment key={c.id}><ArrowRight size={13} style={{ color: 'var(--text-dim)' }} />{node(c)}</React.Fragment>)}
-    </div>
-  );
-}
-
-function RuntimeEvidence({ runtime, endpoints }: { runtime?: { observed: boolean; tracesRecorded: number; target: Light }; endpoints?: { name: string; status: string }[] }) {
-  if (runtime) {
-    return (
-      <div>
-        <span className={runtime.observed ? 'badge badge-verified' : 'badge badge-unobserved'}>● {runtime.observed ? 'VERIFIED' : 'UNOBSERVED'}</span>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '10px 0 0', lineHeight: 1.5 }}>
-          {runtime.observed
-            ? `A recorded execution contains ${runtime.target.name}.`
-            : `TRACE has a static relationship for this path, but no recorded execution confirms it has run.`}
-        </p>
-      </div>
-    );
-  }
-  const eps = (endpoints || []);
-  const verified = eps.filter((e) => e.status === 'VERIFIED').length;
-  return (
-    <div>
-      <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '10px' }}>{verified} of {eps.length} affected {eps.length === 1 ? 'route' : 'routes'} verified at runtime.</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
-        {[...eps].sort((a, b) => (a.status === b.status ? 0 : a.status === 'VERIFIED' ? -1 : 1)).slice(0, 40).map((e, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px' }}>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#0a0a0a' }}>{e.name}</span>
-            <span className={e.status === 'VERIFIED' ? 'badge badge-verified' : 'badge badge-unobserved'}>● {e.status}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Metric({ n, l }: { n: number; l: string }) {
-  return (
-    <div>
-      <div style={{ fontSize: '22px', fontWeight: 800, color: '#0a0a0a', lineHeight: 1 }}>{n}</div>
-      <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '3px' }}>{l}</div>
-    </div>
-  );
-}

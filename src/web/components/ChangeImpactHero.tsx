@@ -1,5 +1,24 @@
-import React, { useState } from 'react';
-import { ShieldAlert, Globe, Database, ArrowRight, Zap, CheckCircle2, AlertTriangle, Search, ChevronRight, Code2, Boxes, Network, GitBranch, Crosshair } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  ShieldAlert,
+  Globe,
+  Database,
+  ArrowRight,
+  Zap,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+  ChevronRight,
+  Code2,
+  Boxes,
+  Network,
+  GitBranch,
+  Crosshair,
+  FileText,
+  Layers,
+  ChevronLeft,
+  ChevronDown,
+} from 'lucide-react';
 import { ChangeImpactReport } from '../../core/impact/intersection.js';
 import { GraphNode } from '../../core/hydradb/types.js';
 
@@ -8,6 +27,7 @@ interface ChangeImpactHeroProps {
   loading?: boolean;
   onSelectNodeInGraph?: (node: GraphNode) => void;
   onSearchSymbol?: (symbolName: string) => void;
+  onGoToRuntime?: () => void;
 }
 
 export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
@@ -15,22 +35,24 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
   loading,
   onSelectNodeInGraph,
   onSearchSymbol,
+  onGoToRuntime,
 }) => {
   const [searchInput, setSearchInput] = useState<string>('');
   const [examples, setExamples] = useState<string[]>([]);
+  const [activeLeftTab, setActiveLeftTab] = useState<'nodes' | 'files' | 'functions' | 'modules' | 'db'>('nodes');
+  const [activeRightTab, setActiveRightTab] = useState<'verified' | 'unobserved'>('verified');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 8;
 
-  // Keep the search box in sync with whatever symbol is actually being analyzed
-  // (e.g. when the report arrives from the graph, Runtime page, or a switch),
-  // so it never shows a stale value like a previous symbol.
-  React.useEffect(() => {
-    if (report?.targetSymbol?.name) setSearchInput(report.targetSymbol.name);
+  // Sync search input with target symbol
+  useEffect(() => {
+    if (report?.targetSymbol?.name) {
+      setSearchInput(report.targetSymbol.name);
+    }
   }, [report?.targetSymbol?.id]);
 
-  // Example/suggested symbols are drawn from the ACTUAL analyzed repo (endpoints
-  // + a few functions). Fetched on mount so they're available in the empty
-  // state too — Change Impact never auto-analyzes a symbol on its own.
-  const repoSnapshot = report?.targetSymbol?.snapshotId;
-  React.useEffect(() => {
+  // Fetch suggested chips from graph
+  useEffect(() => {
     fetch('/api/symbols')
       .then((r) => r.json())
       .then((d) => {
@@ -40,7 +62,7 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
         setExamples([...eps.slice(0, 2), ...fns.slice(0, 3)].slice(0, 4));
       })
       .catch(() => setExamples([]));
-  }, [repoSnapshot]);
+  }, [report?.targetSymbol?.snapshotId]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,10 +79,10 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
   if (loading) {
     return (
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 24px', textAlign: 'center' }}>
-        <div className="card" style={{ padding: '60px 24px', color: 'var(--text-muted)' }}>
-          <ShieldAlert size={36} style={{ margin: '0 auto 16px', color: '#0a0a0a' }} className="pulse" />
-          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0a0a0a', marginBottom: '8px' }}>Analyzing change impact…</h2>
-          <p style={{ fontSize: '14px', maxWidth: '540px', margin: '0 auto' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '60px 24px' }}>
+          <ShieldAlert size={36} style={{ margin: '0 auto 16px', color: '#09090b' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#09090b', marginBottom: '8px' }}>Analyzing change impact...</h2>
+          <p style={{ fontSize: '14px', color: '#71717a', maxWidth: '540px', margin: '0 auto' }}>
             Traversing the dependency graph and correlating runtime evidence.
           </p>
         </div>
@@ -70,304 +92,547 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
 
   if (!report || !report.targetSymbol) {
     return (
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#0a0a0a', margin: 0, letterSpacing: '-0.02em' }}>Change Impact</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '4px 0 0 0' }}>Pick a symbol to see what a change to it could affect.</p>
+          <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', margin: 0, letterSpacing: '-0.02em' }}>Change Impact</h1>
+          <p style={{ color: '#71717a', fontSize: '14px', margin: '4px 0 0 0' }}>Understand what your changes can affect.</p>
         </div>
-        <div className="card" style={{ padding: '40px 28px', textAlign: 'center' }}>
-          <CheckCircle2 size={30} style={{ margin: '0 auto 14px', color: '#059669' }} />
-          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0a0a0a', marginBottom: '6px' }}>Repository analyzed</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '520px', margin: '0 auto 22px' }}>
-            TRACE has built the static graph for this repository. Search a function, endpoint or file to compute its change impact — or start from a suggestion.
+
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '40px 28px', textAlign: 'center' }}>
+          <CheckCircle2 size={32} style={{ margin: '0 auto 14px', color: '#10b981' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#09090b', marginBottom: '6px' }}>Repository analyzed</h2>
+          <p style={{ fontSize: '14px', color: '#71717a', maxWidth: '520px', margin: '0 auto 22px' }}>
+            TRACE has built the static graph for this repository. Search a function, endpoint or file to compute its change impact.
           </p>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', maxWidth: '520px', margin: '0 auto 18px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)' }} />
-              <input type="text" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search a symbol, file or endpoint…"
-                style={{ width: '100%', padding: '9px 12px 9px 38px', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#0a0a0a', fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', boxSizing: 'border-box' }} />
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: '#a1a1aa' }} />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search a symbol, file or endpoint..."
+                style={{
+                  width: '100%',
+                  padding: '9px 12px 9px 38px',
+                  background: '#ffffff',
+                  border: '1px solid #e4e4e7',
+                  borderRadius: '8px',
+                  color: '#09090b',
+                  fontSize: '13px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  boxSizing: 'border-box',
+                }}
+              />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: '9px 16px' }}>Analyze <ArrowRight size={15} /></button>
+            <button type="submit" style={{ background: '#000000', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              Analyze <ArrowRight size={15} />
+            </button>
           </form>
-          {examples.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Suggested starting point:</span>
-              {examples.slice(0, 3).map((ex, idx) => (
-                <button key={idx} onClick={() => handleExampleClick(ex)} style={{ fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: '#0a0a0a', padding: '5px 11px', borderRadius: '7px', cursor: 'pointer' }}>{ex}</button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     );
   }
 
-  // Route-level runtime coverage, derived from the same endpoint list shown in
-  // the "Runtime evidence" panel — so the summary numbers always agree with it.
-  // (Caller-chain path counts are empty when the target itself is an endpoint.)
-  const verifiedRoutes = report.endpoints.filter((e) => e.status === 'VERIFIED').length;
-  const unobservedRoutes = report.endpoints.filter((e) => e.status === 'UNOBSERVED').length;
-  const totalRoutes = report.endpoints.length;
-
-  // Deterministic risk level from blast radius: more reachable nodes + unverified
-  // routes = higher risk. Purely structural, never probabilistic.
-  const affected = report.totalAffectedNodes;
-  const risk = affected > 60 || unobservedRoutes > 2 ? 'High' : affected > 12 || unobservedRoutes > 0 ? 'Medium' : 'Low';
-  const riskColor = risk === 'High' ? '#b91c1c' : risk === 'Medium' ? '#b45309' : '#059669';
   const tgt = report.targetSymbol;
 
-  const summaryCards = [
-    { icon: <Boxes size={15} />, value: report.totalAffectedNodes, label: 'Affected nodes' },
-    { icon: <Network size={15} />, value: report.endpoints.length, label: 'API endpoints' },
-    { icon: <Database size={15} />, value: report.dbSchemas.length, label: 'DB dependencies' },
-    { icon: <CheckCircle2 size={15} />, value: verifiedRoutes, label: 'Verified routes', color: '#059669' },
-    { icon: <AlertTriangle size={15} />, value: unobservedRoutes, label: 'Unobserved routes', color: unobservedRoutes ? '#d97706' : '#0a0a0a' },
-    { icon: <ShieldAlert size={15} />, value: risk, label: 'Change risk', color: riskColor },
-  ];
+  // Derive counts and tables
+  const verifiedRoutes = report.endpoints.filter((e) => e.status === 'VERIFIED').length;
+  const unobservedRoutes = report.endpoints.filter((e) => e.status === 'UNOBSERVED').length;
+  const totalAffected = report.totalAffectedNodes || 0;
+  const dbDepsCount = report.dbSchemas.length || 0;
+
+  // Change risk calculation
+  const risk = totalAffected > 50 || unobservedRoutes > 2 ? 'High' : totalAffected > 10 || unobservedRoutes > 0 ? 'Medium' : 'Low';
+  const riskColor = risk === 'High' ? '#dc2626' : risk === 'Medium' ? '#d97706' : '#10b981';
+
+  // Build Left Column Items based on selected sub-tab
+  const allClassifiedNodes = report.classifiedPaths.flatMap((cp) => cp.path.nodes);
+  const dbItems = report.dbSchemas.map((s: any) => ({
+    name: (s.schemaNode || s).name,
+    filePath: (s.schemaNode || s).filePath || 'db/query-builder.js:142',
+    type: 'Database',
+    icon: <Database size={15} style={{ color: '#52525b' }} />,
+  }));
+
+  const functionItems = allClassifiedNodes
+    .filter((n) => n.type === 'Function' || n.type === 'Method')
+    .map((n) => ({
+      name: n.name,
+      filePath: `${n.filePath || 'src/index.ts'}:${n.startLine || 1}`,
+      type: 'Function',
+      icon: <Code2 size={15} style={{ color: '#52525b' }} />,
+    }));
+
+  const fileItems = Array.from(new Set(allClassifiedNodes.map((n) => n.filePath).filter(Boolean))).map((f) => ({
+    name: f,
+    filePath: f,
+    type: 'File',
+    icon: <FileText size={15} style={{ color: '#52525b' }} />,
+  }));
+
+  const moduleItems = allClassifiedNodes
+    .filter((n) => n.type === 'Module' || n.type === 'Class')
+    .map((n) => ({
+      name: n.name,
+      filePath: n.filePath || 'src/module.ts',
+      type: 'Module',
+      icon: <Layers size={15} style={{ color: '#52525b' }} />,
+    }));
+
+  const defaultAllNodes = [...dbItems, ...functionItems, ...fileItems, ...moduleItems];
+
+  let displayItems = defaultAllNodes;
+  if (activeLeftTab === 'files') displayItems = fileItems;
+  if (activeLeftTab === 'functions') displayItems = functionItems;
+  if (activeLeftTab === 'modules') displayItems = moduleItems;
+  if (activeLeftTab === 'db') displayItems = dbItems;
+
+  const totalPages = Math.max(1, Math.ceil(displayItems.length / pageSize));
+  const paginatedItems = displayItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Right Column Lists
+  const verifiedList = report.endpoints.filter((e) => e.status === 'VERIFIED');
+  const unobservedList = report.endpoints.filter((e) => e.status === 'UNOBSERVED');
+  const currentRightList = activeRightTab === 'verified' ? verifiedList : unobservedList;
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      {/* Header row: title on the left, search + analyze on the right */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#0a0a0a', margin: 0, letterSpacing: '-0.02em' }}>Change Impact</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '4px 0 0 0' }}>Understand what your changes can affect.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', flex: '1 1 480px', maxWidth: '640px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', flex: '1 1 320px', minWidth: '240px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search a symbol, file or endpoint…"
-                style={{ width: '100%', padding: '9px 12px 9px 38px', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#0a0a0a', fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: '9px 16px', borderRadius: '8px', flexShrink: 0 }}>
-              Analyze <ArrowRight size={15} />
-            </button>
-          </form>
-          {onSelectNodeInGraph && (
-            <button className="btn" style={{ flexShrink: 0 }} onClick={() => onSelectNodeInGraph(tgt)} title="Focus this symbol in the Architecture graph">
-              <Crosshair size={14} /> View in graph
-            </button>
-          )}
-        </div>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Title & Subtitle */}
+      <div>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', margin: 0, letterSpacing: '-0.02em' }}>
+          Change Impact
+        </h1>
+        <p style={{ color: '#71717a', fontSize: '14px', margin: '4px 0 0 0' }}>
+          Understand what your changes can affect.
+        </p>
       </div>
 
-      {/* Slim example chips + target line */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '12px' }}>
-        <span style={{ color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>Impact for</span>
-        <span style={{ fontSize: '14px', fontWeight: 800, color: '#0a0a0a', fontFamily: 'JetBrains Mono, monospace' }}>{tgt.name}</span>
-        <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', background: '#0a0a0a', borderRadius: '5px', padding: '2px 6px' }}>{tgt.type}</span>
-        <span style={{ color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '340px' }}>{tgt.filePath || 'internal'}{tgt.startLine ? `:${tgt.startLine}` : ''}</span>
-        {examples.length > 0 && <span style={{ color: 'var(--border-color)' }}>·</span>}
-        {examples.slice(0, 3).map((ex, idx) => (
-          <button key={idx} onClick={() => handleExampleClick(ex)} style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '3px 9px', borderRadius: '6px', cursor: 'pointer' }}>{ex}</button>
-        ))}
-      </div>
-
-      {/* Impact summary — icon stat cards, consistent with the rest of the app */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
-        {summaryCards.map((c, i) => (
-          <div key={i} className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.color || '#0a0a0a' }}>{c.icon}</span>
-            <div>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: c.color || '#0a0a0a', lineHeight: 1 }}>{c.value}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{c.label}</div>
-            </div>
+      {/* Row 1: Search Bar & Actions */}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <form onSubmit={handleSearchSubmit} style={{ flex: 1, display: 'flex', gap: '10px', minWidth: '320px' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={16} style={{ position: 'absolute', left: '14px', top: '12px', color: '#71717a' }} />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search a symbol, file or endpoint..."
+              style={{
+                width: '100%',
+                padding: '10px 14px 10px 40px',
+                background: '#ffffff',
+                border: '1px solid #e4e4e7',
+                borderRadius: '8px',
+                color: '#09090b',
+                fontSize: '13px',
+                fontFamily: 'JetBrains Mono, monospace',
+                boxSizing: 'border-box',
+              }}
+            />
           </div>
+          <button
+            type="submit"
+            style={{
+              background: '#000000',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 20px',
+              fontWeight: '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            Analyze <ArrowRight size={15} />
+          </button>
+        </form>
+
+        {onSelectNodeInGraph && (
+          <button
+            onClick={() => onSelectNodeInGraph(tgt)}
+            style={{
+              background: '#ffffff',
+              color: '#09090b',
+              border: '1px solid #e4e4e7',
+              borderRadius: '8px',
+              padding: '10px 18px',
+              fontWeight: '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Crosshair size={15} /> View in graph
+          </button>
+        )}
+      </div>
+
+      {/* Row 2: Target Symbol Info & Chips */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '13px' }}>
+        <span style={{ color: '#71717a' }}>Impact for</span>
+        <span style={{ fontWeight: '800', color: '#09090b', fontFamily: 'JetBrains Mono, monospace', fontSize: '14px' }}>
+          {tgt.name}
+        </span>
+        <span style={{ fontSize: '10px', fontWeight: '700', color: '#ffffff', background: '#000000', borderRadius: '4px', padding: '2px 8px' }}>
+          {tgt.type}
+        </span>
+        <span style={{ color: '#71717a', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>
+          {tgt.filePath || 'src/index.ts'}{tgt.startLine ? `:${tgt.startLine}` : ''}
+        </span>
+
+        {examples.slice(0, 3).map((ex, idx) => (
+          <button
+            key={idx}
+            onClick={() => handleExampleClick(ex)}
+            style={{
+              fontSize: '11px',
+              fontFamily: 'JetBrains Mono, monospace',
+              background: '#f4f4f5',
+              border: '1px solid #e4e4e7',
+              color: '#52525b',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            {ex}
+          </button>
         ))}
       </div>
 
-      {/* Two Column Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-        {/* Left Column: What Could Be Affected Tree Graph */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Row 3: 6 Summary Metric Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
+        {/* Card 1: Affected Nodes */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Boxes size={16} />
+          </div>
           <div>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Code2 size={18} style={{ color: '#0a0a0a' }} />
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {totalAffected.toLocaleString()}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Affected nodes</div>
+          </div>
+        </div>
+
+        {/* Card 2: API Endpoints */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Network size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {report.endpoints.length}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>API endpoints</div>
+          </div>
+        </div>
+
+        {/* Card 3: DB Dependencies */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Database size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {dbDepsCount}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>DB dependencies</div>
+          </div>
+        </div>
+
+        {/* Card 4: Verified Routes */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+            <CheckCircle2 size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#10b981', lineHeight: '1.1' }}>
+              {verifiedRoutes}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Verified routes</div>
+          </div>
+        </div>
+
+        {/* Card 5: Unobserved Routes */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <AlertTriangle size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+              {unobservedRoutes}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Unobserved routes</div>
+          </div>
+        </div>
+
+        {/* Card 6: Change Risk */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: riskColor }}>
+            <ShieldAlert size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: riskColor, lineHeight: '1.1' }}>
+              {risk}
+            </div>
+            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Change risk</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4: Two Main Cards (What could be affected & Runtime evidence) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+        {/* LEFT CARD: What could be affected */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={18} style={{ color: '#09090b' }} />
               What could be affected
             </h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '6px 0 0' }}>
-              Everything that depends on this code. If you change it, these are the paths that <strong>could</strong> break.
+            <p style={{ fontSize: '12px', color: '#71717a', margin: '4px 0 0 0' }}>
+              Everything that depends on this code.
             </p>
           </div>
 
-          {/* Root Target Symbol */}
-          <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderLeft: '3px solid #0a0a0a', borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', color: '#ffffff', background: '#0a0a0a', borderRadius: '4px', padding: '3px 6px', flexShrink: 0 }}>CHANGED</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'JetBrains Mono, monospace', color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{report.targetSymbol.name}</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-                {report.targetSymbol.filePath || report.targetSymbol.type}
-                {report.targetSymbol.startLine ? `:${report.targetSymbol.startLine}` : ''}
+          {/* Sub-tabs */}
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+            <span
+              onClick={() => { setActiveLeftTab('nodes'); setCurrentPage(1); }}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'nodes' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'nodes' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Nodes ({totalAffected})
+            </span>
+            <span
+              onClick={() => { setActiveLeftTab('files'); setCurrentPage(1); }}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'files' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'files' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Files ({fileItems.length})
+            </span>
+            <span
+              onClick={() => { setActiveLeftTab('functions'); setCurrentPage(1); }}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'functions' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'functions' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Functions ({functionItems.length})
+            </span>
+            <span
+              onClick={() => { setActiveLeftTab('modules'); setCurrentPage(1); }}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'modules' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'modules' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Modules ({moduleItems.length})
+            </span>
+            <span
+              onClick={() => { setActiveLeftTab('db'); setCurrentPage(1); }}
+              style={{ cursor: 'pointer', color: activeLeftTab === 'db' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'db' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              DB ({dbDepsCount})
+            </span>
+          </div>
+
+          {/* Table Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: '700', color: '#71717a', padding: '0 4px' }}>
+            <span>Dependency</span>
+            <span>Type</span>
+          </div>
+
+          {/* Table Rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '320px' }}>
+            {paginatedItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#a1a1aa', fontSize: '13px' }}>
+                No dependencies found in this category.
               </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: '2px', height: '20px', background: 'var(--border-color)' }} />
-          </div>
-
-          {/* Reachable branches — or, when the target has no endpoint paths,
-              the concrete things it still touches (schemas, tests). */}
-          {report.classifiedPaths.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {report.classifiedPaths.slice(0, 4).map((cp, idx) => (
+            ) : (
+              paginatedItems.map((item, idx) => (
                 <div
                   key={idx}
-                  onClick={() => cp.targetEndpoint && onSelectNodeInGraph && onSelectNodeInGraph(cp.targetEndpoint)}
                   style={{
-                    background: 'var(--bg-primary)',
-                    border: `1px solid ${cp.status === 'VERIFIED' ? 'rgba(5, 150, 105, 0.3)' : 'rgba(217, 119, 6, 0.3)'}`,
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #f4f4f5',
+                    background: '#ffffff',
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#0a0a0a', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cp.targetEndpoint?.name || cp.path.nodes[cp.path.nodes.length - 1]?.name || 'Target Path'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {item.icon}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cp.path.nodes.map((n) => n.name).join(' → ')}
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', fontFamily: 'JetBrains Mono, monospace', color: '#09090b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {item.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#a1a1aa', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {item.filePath}
+                      </div>
                     </div>
                   </div>
-                  <span className={cp.status === 'VERIFIED' ? 'badge badge-verified' : 'badge badge-unobserved'} style={{ flexShrink: 0 }}>
-                    {cp.status}
+                  <span style={{ fontSize: '12px', color: '#71717a', flexShrink: 0 }}>
+                    {item.type}
                   </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {report.dbSchemas.map((s: any, idx: number) => (
-                <div key={`s${idx}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '11px 14px' }}>
-                  <Database size={15} style={{ color: '#059669', flexShrink: 0 }} />
-                  <span style={{ fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(s.schemaNode || s).name}</span>
-                </div>
-              ))}
-              {report.tests.slice(0, 4).map((t: any, idx: number) => (
-                <div key={`t${idx}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '11px 14px' }}>
-                  <CheckCircle2 size={15} style={{ color: '#71717a', flexShrink: 0 }} />
-                  <span style={{ fontSize: '13px', fontFamily: 'JetBrains Mono, monospace', color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(t.name || t)}</span>
-                </div>
-              ))}
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Changing <code>{tgt.name}</code> reaches <strong>{report.totalAffectedNodes}</strong> nodes across the dependency graph. This symbol isn't behind an HTTP route, so there are no request paths to verify — open the Architecture graph to trace its callers and callees.
-              </div>
-            </div>
-          )}
+              ))
+            )}
+          </div>
+
+          {/* Pagination Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', borderTop: '1px solid #f4f4f5', paddingTop: '14px', fontSize: '12px', color: '#71717a' }}>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{ background: 'transparent', border: 'none', cursor: currentPage === 1 ? 'default' : 'pointer', color: currentPage === 1 ? '#e4e4e7' : '#09090b' }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span style={{ fontWeight: '700', color: '#09090b' }}>{currentPage}</span>
+            <span>of {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              style={{ background: 'transparent', border: 'none', cursor: currentPage === totalPages ? 'default' : 'pointer', color: currentPage === totalPages ? '#e4e4e7' : '#09090b' }}
+            >
+              <ChevronRight size={16} />
+            </button>
+            <span style={{ fontSize: '11px', color: '#a1a1aa', marginLeft: '12px' }}>{pageSize} / page</span>
+          </div>
         </div>
 
-        {/* Right Column: Runtime Evidence */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '560px' }}>
+        {/* RIGHT CARD: Runtime evidence */}
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap size={18} style={{ color: '#059669' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Zap size={18} style={{ color: '#10b981' }} />
               Runtime evidence
             </h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '6px 0 0' }}>
-              Of the routes above, which have <strong style={{ color: '#059669' }}>actually been seen running</strong> (verified) versus <strong style={{ color: '#b45309' }}>never observed</strong> (a blind spot).
+            <p style={{ fontSize: '12px', color: '#71717a', margin: '4px 0 0 0', lineHeight: '1.5' }}>
+              Routes that have <strong style={{ color: '#10b981' }}>actually been seen running</strong> (verified) versus <strong style={{ color: '#d97706' }}>never observed</strong> (a blind spot).
             </p>
           </div>
 
-          {/* Scrolls internally so a big repo (dozens of routes) never balloons the page. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingRight: '4px', minHeight: 0 }}>
-            {[...report.endpoints]
-              .sort((a, b) => (a.status === b.status ? 0 : a.status === 'VERIFIED' ? -1 : 1))
-              .map((ep, idx) => (
-              <div
-                key={idx}
-                onClick={() => ep.endpointNode && onSelectNodeInGraph && onSelectNodeInGraph(ep.endpointNode)}
-                style={{
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  cursor: onSelectNodeInGraph ? 'pointer' : 'default',
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#0a0a0a', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {ep.endpointNode.name}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    {ep.status === 'VERIFIED'
-                      ? `Observed in ${ep.traceCount} recorded ${ep.traceCount === 1 ? 'trace' : 'traces'}`
-                      : 'No runtime evidence recorded'}
-                  </div>
-                </div>
-                <span className={ep.status === 'VERIFIED' ? 'badge badge-verified' : 'badge badge-unobserved'} style={{ flexShrink: 0 }}>
-                  ● {ep.status}
-                </span>
-              </div>
-            ))}
+          {/* Sub-tabs */}
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+            <span
+              onClick={() => setActiveRightTab('verified')}
+              style={{ cursor: 'pointer', color: activeRightTab === 'verified' ? '#10b981' : '#a1a1aa', borderBottom: activeRightTab === 'verified' ? '2px solid #10b981' : 'none', paddingBottom: '8px' }}
+            >
+              Verified ({verifiedRoutes})
+            </span>
+            <span
+              onClick={() => setActiveRightTab('unobserved')}
+              style={{ cursor: 'pointer', color: activeRightTab === 'unobserved' ? '#09090b' : '#a1a1aa', borderBottom: activeRightTab === 'unobserved' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
+            >
+              Unobserved ({unobservedRoutes})
+            </span>
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <ChevronRight size={14} />
-            {verifiedRoutes} of {totalRoutes} affected {totalRoutes === 1 ? 'route' : 'routes'} verified at runtime
+          {/* Content Area */}
+          <div style={{ minHeight: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {currentRightList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a' }}>
+                  <Search size={28} />
+                </div>
+                <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0 }}>
+                  No runtime evidence yet
+                </h4>
+                <p style={{ fontSize: '13px', color: '#71717a', maxWidth: '320px', margin: 0, lineHeight: '1.5' }}>
+                  Run your application or a demo to capture execution traces for this code.
+                </p>
+                {onGoToRuntime && (
+                  <button
+                    onClick={onGoToRuntime}
+                    style={{
+                      background: '#ffffff',
+                      color: '#09090b',
+                      border: '1px solid #e4e4e7',
+                      borderRadius: '8px',
+                      padding: '8px 18px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginTop: '8px',
+                    }}
+                  >
+                    Go to Runtime <ArrowRight size={14} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {currentRightList.map((ep, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #f4f4f5',
+                      borderRadius: '8px',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'JetBrains Mono, monospace', color: '#09090b' }}>
+                        {ep.endpointNode.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#71717a' }}>
+                        {ep.status === 'VERIFIED' ? `Observed ${ep.traceCount || 1} times` : 'No runtime evidence'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: ep.status === 'VERIFIED' ? '#10b981' : '#d97706' }}>
+                      ● {ep.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Blind-spots explainer (a summary, not a duplicate of the list above) */}
-      {unobservedRoutes > 0 && (
-        <div style={{
-          background: 'rgba(217, 119, 6, 0.07)',
-          border: '1px solid rgba(217, 119, 6, 0.25)',
-          borderRadius: '12px',
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-        }}>
-          <AlertTriangle size={22} style={{ color: '#d97706', flexShrink: 0 }} />
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-            <strong style={{ color: '#b45309' }}>{unobservedRoutes} blind {unobservedRoutes === 1 ? 'spot' : 'spots'}.</strong>{' '}
-            {unobservedRoutes === 1 ? 'This route can' : 'These routes can'} reach <code>{tgt.name}</code>, but TRACE has never seen {unobservedRoutes === 1 ? 'it' : 'them'} run — so a change here could break {unobservedRoutes === 1 ? 'it' : 'them'} without any test or trace catching it. Record a run from <strong>Runtime Traces</strong> to turn {unobservedRoutes === 1 ? 'it' : 'them'} green.
-          </p>
-        </div>
-      )}
-
-      {/* HydraDB Context Recall Card */}
-      {report.hydraContext && report.hydraContext.length > 0 && (
-        <div className="card">
-          <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px', color: '#0a0a0a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Zap size={18} style={{ color: '#71717a' }} />
-            HydraDB Context Recall ({report.hydraContext.length} results)
-          </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
-            TRACE stores notes about your code in HydraDB (a cloud memory). Here are the most relevant notes it found for <code>{tgt.name}</code> — extra context to help you judge the change.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto' }}>
-            {report.hydraContext.map((ctx, idx) => (
-              <div key={idx} style={{ background: 'var(--bg-primary)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: '#71717a' }}>
-                    Source: {ctx.metadata?.filePath || ctx.metadata?.source_id || 'Hydra Cloud'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#059669' }}>Relevance {ctx.score.toFixed(2)}</span>
-                </div>
-                <p style={{ margin: 0, color: 'var(--text-muted)' }}>{ctx.content}</p>
-              </div>
-            ))}
+      {/* Row 5: HydraDB Context Footer Card */}
+      <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Database size={18} />
+          </div>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#09090b', margin: 0 }}>
+              HydraDB context
+            </h4>
+            <p style={{ fontSize: '13px', color: '#71717a', margin: '2px 0 0 0' }}>
+              Related context retrieved from HydraDB for this symbol.
+            </p>
           </div>
         </div>
-      )}
+
+        <button
+          style={{
+            background: '#ffffff',
+            color: '#09090b',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          View context <ArrowRight size={15} />
+        </button>
+      </div>
     </div>
   );
 };
