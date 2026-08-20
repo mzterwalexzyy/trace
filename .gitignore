@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-web/
+.trace/
+.env
+.env.*
+!.env.example
+trace_credential
+trace_credential.txt
+credential.txt
+credential
+*.log

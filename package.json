@@ -1,0 +1,40 @@
+{
+  "name": "trace-hydradb",
+  "version": "1.0.0",
+  "description": "TRACE — Engineering Intelligence Platform powered by HydraDB",
+  "main": "dist/cli/index.js",
+  "type": "module",
+  "bin": {
+    "trace": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc && vite build",
+    "trace": "tsx src/cli/index.ts",
+    "server": "tsx src/server/api-server.ts",
+    "dev": "vite",
+    "test": "node --import tsx --test \"src/tests/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@hydradb/sdk": "^2.1.2",
+    "@supabase/supabase-js": "^2.112.3",
+    "commander": "^12.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "lucide-react": "^0.427.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/cytoscape": "^3.21.4",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.2.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "cytoscape": "^3.30.2",
+    "tsx": "^4.17.0",
+    "vite": "^5.4.0"
+  }
+}
