@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { execFile } from 'child_process';
 import { HydraDBClient } from '../core/hydradb/client.js';
 import { RepositoryAnalyzer } from '../core/parser/analyzer.js';
@@ -14,7 +15,13 @@ import { aiProviderInfo } from './ai-provider.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
-const dbClient = new HydraDBClient();
+
+// On serverless (Vercel) the project dir is read-only — only the OS temp dir is
+// writable. Persist the local graph, eval log, and clones there. Locally this
+// stays the project dir so state survives restarts.
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_ROOT = IS_SERVERLESS ? path.join(os.tmpdir(), 'trace') : process.cwd();
+const dbClient = new HydraDBClient({ dbPath: path.join(DATA_ROOT, '.trace', 'hydradb_graph.json') });
 const intersectionEngine = new IntersectionEngine(dbClient);
 const gitDiffEngine = new GitDiffEngine(dbClient);
 
@@ -48,7 +55,7 @@ function cloneRepo(url: string): Promise<string> {
       reject(new Error('Not a valid Git URL.'));
       return;
     }
-    const dest = path.resolve(process.cwd(), '.trace', 'repos', repoNameFromUrl(clean));
+    const dest = path.resolve(DATA_ROOT, '.trace', 'repos', repoNameFromUrl(clean));
     if (fs.existsSync(path.join(dest, '.git'))) {
       resolve(dest); // already cloned — reuse
       return;
@@ -104,7 +111,7 @@ interface EvaluationRun {
   edgeCount: number;
 }
 
-const EVAL_LOG_PATH = path.resolve(process.cwd(), '.trace', 'evaluations.json');
+const EVAL_LOG_PATH = path.resolve(DATA_ROOT, '.trace', 'evaluations.json');
 
 function loadRuns(): EvaluationRun[] {
   try {

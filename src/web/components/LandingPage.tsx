@@ -187,7 +187,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
   });
 
   return (
-    <div style={{ background: bg, color: textMain, height: '100vh', width: '100vw', fontFamily: SANS, overflowX: 'hidden', overflowY: 'auto', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div className="landing-container" style={{ background: bg, color: textMain, minHeight: '100vh', height: '100vh', width: '100vw', fontFamily: SANS, overflowX: 'hidden', overflowY: 'auto', position: 'relative', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @keyframes traceFloatA { 0%,100%{transform:translate(0,0)} 50%{transform:translate(70px,-56px)} }
         @keyframes traceFloatB { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-64px,48px)} }
@@ -196,15 +196,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
         @keyframes traceDrift2 { 0%,100%{transform:translate(0,0) rotate(5deg)} 50%{transform:translate(-30px,-22px) rotate(-7deg)} }
         @keyframes traceDrift3 { 0%,100%{transform:translate(0,0) rotate(-4deg)} 50%{transform:translate(22px,30px) rotate(9deg)} }
 
-        /* Hide background tech logos & 3 feature cards on mobile for clean fit */
+        /* Hide background tech logos, 3 feature cards, and plain secondary links on mobile for single-line header fit */
         @media (max-width: 768px) {
+          .landing-container { min-height: 100vh !important; height: auto !important; }
           .landing-deco-hide { display: none !important; }
           .landing-feature-band { display: none !important; }
+          .mobile-nav-hide { display: none !important; }
           .landing-header { padding: 12px 16px !important; }
-          .landing-hero { padding: 16px 16px 24px !important; }
-          .landing-action-row { flex-direction: column !important; width: 100% !important; }
+          .landing-hero { padding: 10px 16px 20px !important; justify-content: flex-start !important; flex: 1 0 auto !important; }
+          .landing-action-row { flex-direction: column !important; width: 100% !important; margin-top: 14px !important; }
           .landing-input { width: 100% !important; flex: 1 1 100% !important; }
           .landing-button { width: 100% !important; }
+          .landing-demo-card { margin-top: 14px !important; }
+          .landing-mobile-footer { display: flex !important; }
         }
       `}</style>
 
@@ -220,13 +224,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
           justifyContent: 'space-between',
           padding: '16px 40px',
           gap: 12,
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
         }}
       >
-        <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>
+        <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', cursor: 'pointer', flexShrink: 0 }} onClick={() => onEnterDashboard(undefined, true)}>
           TRACE <span style={{ color: textDim, fontWeight: 400, fontSize: 13 }}>[v0.1.0]</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontFamily: MONO, fontSize: 13, color: textMuted, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: MONO, fontSize: 13, color: textMuted, flexShrink: 0 }}>
           <button
             onClick={() => onEnterDashboard(undefined, true)}
             style={{
@@ -244,8 +248,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
           >
             [ Open Dashboard ]
           </button>
-          <span style={{ cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>[ Docs ]</span>
-          <a href="https://github.com/mzterwalexzyy/trace" target="_blank" rel="noreferrer" style={{ color: textMuted, textDecoration: 'none' }}>[ GitHub ]</a>
+          <span className="mobile-nav-hide" style={{ cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>[ Docs ]</span>
+          <a className="mobile-nav-hide" href="https://github.com/mzterwalexzyy/trace" target="_blank" rel="noreferrer" style={{ color: textMuted, textDecoration: 'none' }}>[ GitHub ]</a>
           <StatusPill />
         </div>
       </header>
@@ -388,6 +392,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
 
           {/* Demo card */}
           <div
+            className="landing-demo-card"
             style={{
               margin: '16px auto 0',
               maxWidth: 780,
@@ -479,6 +484,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
           ))}
         </div>
       </section>
+
+      {/* Mobile footer bar */}
+      <footer
+        className="landing-mobile-footer"
+        style={{
+          display: 'none',
+          padding: '14px 20px',
+          borderTop: '1px solid #e6e6e9',
+          background: '#fafafa',
+          fontSize: '12px',
+          fontFamily: MONO,
+          color: textMuted,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 'auto',
+          flexShrink: 0,
+        }}
+      >
+        <span>TRACE [v0.1.0]</span>
+        <span>AST &amp; Runtime Engine</span>
+      </footer>
     </div>
   );
 };
