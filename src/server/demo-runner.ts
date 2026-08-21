@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import { pathToFileURL } from 'url';
 import { HydraDBClient } from '../core/hydradb/client.js';
 
@@ -106,8 +107,19 @@ export async function runDemoScenario(
   repoPath: string,
   scenario: DemoScenario
 ): Promise<DemoRunResult> {
-  const hookUrl = pathToFileURL(path.join(repoPath, 'src', 'trace', 'hook.ts')).href;
-  const { setTraceImpl } = await import(hookUrl);
+  // Prefer the compiled demo (dist/*.js) when it exists. On hosts that run
+  // TypeScript natively (Vercel's serverless runtime), a `.ts` import specifier
+  // and the demo's own `'../trace/hook.js'` specifier resolve to *different*
+  // module instances, so `setTraceImpl` never reaches the seam the handlers use
+  // and only the root span is recorded. Importing the compiled `.js` build keeps
+  // the hook a single instance, so every `traced()` call fires for real. Local
+  // tsx runs (no dist) fall back to the `.ts` sources, where tsx unifies them.
+  const useDist = fs.existsSync(path.join(repoPath, 'dist', 'trace', 'hook.js'));
+  const srcBase = useDist ? path.join(repoPath, 'dist') : path.join(repoPath, 'src');
+  const ext = useDist ? '.js' : '.ts';
+  const modUrl = (...seg: string[]) => pathToFileURL(path.join(srcBase, ...seg) + ext).href;
+
+  const { setTraceImpl } = await import(modUrl('trace', 'hook'));
 
   const traceId = `trace_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const rootSpanId = `span_${traceId}_root`;
@@ -128,12 +140,10 @@ export async function runDemoScenario(
   const rootStart = performance.now();
   try {
     if (scenario === 'checkout') {
-      const url = pathToFileURL(path.join(repoPath, 'src', 'handlers', 'checkout.ts')).href;
-      const { checkoutHandler } = await import(url);
+      const { checkoutHandler } = await import(modUrl('handlers', 'checkout'));
       await checkoutHandler(100, 'usr_123', 'tok_visa');
     } else {
-      const url = pathToFileURL(path.join(repoPath, 'src', 'handlers', 'invoice.ts')).href;
-      const { invoiceHandler } = await import(url);
+      const { invoiceHandler } = await import(modUrl('handlers', 'invoice'));
       invoiceHandler(250, 'Acme Corp');
     }
   } finally {

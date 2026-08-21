@@ -147,7 +147,10 @@ async function saveActiveGraphNow(): Promise<void> {
 
 async function ensureGraphLoaded(): Promise<void> {
   if (!IS_SERVERLESS || !supabaseStore.isConfigured()) return;
-  if (dbClient.getNodes().length > 0) return; // already hydrated in this instance
+  // Always reload the shared blob on serverless: a warm instance may hold an
+  // older snapshot (e.g. hydrated before a trace was recorded on a *different*
+  // instance), so "reload only when empty" would serve stale results. The blob
+  // is the single source of truth; if it is missing we keep whatever we have.
   try {
     const json = await supabaseStore.loadActiveGraph();
     if (!json) return;
