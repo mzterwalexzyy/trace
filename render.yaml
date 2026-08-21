@@ -1,0 +1,32 @@
+# Render blueprint for TRACE.
+#
+# TRACE runs best as a normal long-lived Node process: a writable filesystem and
+# in-memory state that survives across requests, so it does NOT need the Vercel
+# serverless workarounds (writing to /tmp, mirroring the graph to Supabase). On
+# Render the app detects it is not serverless and uses a normal .trace store.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo. Then set the
+# secret env vars (HydraDB / AI keys) in the dashboard; they are intentionally
+# not stored in this file.
+services:
+  - type: web
+    name: trace
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/repository
+    autoDeploy: true
+    envVars:
+      # Bind to all interfaces so Render can route to the service. Render injects
+      # PORT at runtime and the server reads it, so PORT is not set here.
+      - key: TRACE_HOST
+        value: 0.0.0.0
+      # Set these in the Render dashboard (marked secret, not synced from git):
+      - key: HYDRA_DB_API_KEY
+        sync: false
+      - key: HYDRA_DB_DATABASE
+        sync: false
+      # Optional: enables the Ask TRACE AI explanation layer. Leave unset for
+      # Evidence Mode.
+      - key: OPENAI_API_KEY
+        sync: false
