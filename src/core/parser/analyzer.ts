@@ -392,6 +392,16 @@ export class RepositoryAnalyzer {
       return results;
     }
 
+    // TypeScript basenames in this directory, so a compiled `foo.js` sitting next
+    // to its `foo.ts` source is treated as build output and skipped — otherwise
+    // the same symbols get parsed twice and every count doubles.
+    const tsBasenames = new Set<string>();
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const m = entry.name.match(/^(.*)\.(ts|tsx)$/);
+      if (m && !entry.name.endsWith('.d.ts')) tsBasenames.add(m[1]);
+    }
+
     for (const entry of entries) {
       if (results.length >= RepositoryAnalyzer.MAX_FILES) break;
       // Never follow symlinks: prevents cycles and escaping the repository root.
@@ -406,6 +416,9 @@ export class RepositoryAnalyzer {
         }
       } else if (entry.isFile()) {
         if (/\.(ts|js|tsx|jsx)$/.test(entry.name) && !entry.name.endsWith('.d.ts') && !this.isMinified(entry.name, fullPath)) {
+          // Drop compiled JS that shadows a TS source in the same directory.
+          const js = entry.name.match(/^(.*)\.(js|jsx)$/);
+          if (js && tsBasenames.has(js[1])) continue;
           results.push(fullPath);
         }
       }

@@ -155,6 +155,9 @@ async function ensureGraphLoaded(): Promise<void> {
     const json = await supabaseStore.loadActiveGraph();
     if (!json) return;
     const g = JSON.parse(json);
+    // Never let a missing/empty blob wipe a warm instance that already holds a
+    // good graph — only replace in-memory state with a non-empty snapshot.
+    if (!Array.isArray(g.nodes) || g.nodes.length === 0) return;
     dbClient.clear();
     dbClient.setSnapshotMetadata(g.commitSha || 'HEAD', g.snapshotId || `snap_${Date.now()}`);
     for (const n of g.nodes || []) dbClient.upsertNode(n);
