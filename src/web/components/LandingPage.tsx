@@ -199,19 +199,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard, onOp
         @keyframes traceDrift2 { 0%,100%{transform:translate(0,0) rotate(5deg)} 50%{transform:translate(-30px,-22px) rotate(-7deg)} }
         @keyframes traceDrift3 { 0%,100%{transform:translate(0,0) rotate(-4deg)} 50%{transform:translate(22px,30px) rotate(9deg)} }
 
-        /* Mobile Layout & Vertical Stretching Rules */
+        /* Mobile: content centered, no stretching */
         @media (max-width: 768px) {
-          .landing-container { height: 100vh !important; min-height: 100vh !important; }
           .landing-deco-hide { display: none !important; }
           .landing-feature-band { display: none !important; }
           .mobile-nav-hide { display: none !important; }
           .landing-header { padding: 12px 16px !important; }
-          .landing-hero { padding: 14px 16px 20px !important; flex: 1 1 auto !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
-          .landing-hero-content { flex: 1 !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
-          .landing-action-row { flex-direction: column !important; width: 100% !important; margin-top: 12px !important; }
-          .landing-input { width: 100% !important; flex: 1 1 100% !important; }
+          .landing-hero { padding: 0 16px 16px !important; flex: 1 1 auto !important; justify-content: center !important; }
+          .landing-action-row { flex-direction: column !important; width: 100% !important; gap: 10px !important; }
+          .landing-input { width: 100% !important; flex: unset !important; }
           .landing-button { width: 100% !important; }
-          .landing-demo-card { margin-top: 14px !important; flex: 1 !important; min-height: 160px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
           .landing-mobile-footer { display: flex !important; }
         }
       `}</style>

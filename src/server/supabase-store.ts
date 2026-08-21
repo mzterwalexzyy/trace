@@ -206,6 +206,31 @@ class SupabaseStore {
     return data ?? [];
   }
 
+  /**
+   * Serverless "active graph" persistence. On stateless hosts (Vercel) the
+   * in-memory graph doesn't survive between function invocations, so after each
+   * analysis we mirror the whole graph to a single shared blob and reload it on
+   * a cold request. Uses the service key (bypasses RLS) at a fixed path.
+   */
+  async saveActiveGraph(json: string): Promise<void> {
+    if (!this.client) return;
+    const up = await this.client.storage
+      .from(GRAPH_BUCKET)
+      .upload('active/graph.json', json, { contentType: 'application/json', upsert: true });
+    if (up.error) console.warn(`[supabase] saveActiveGraph failed: ${up.error.message}`);
+  }
+
+  async loadActiveGraph(): Promise<string | null> {
+    if (!this.client) return null;
+    try {
+      const dl = await this.client.storage.from(GRAPH_BUCKET).download('active/graph.json');
+      if (dl.error || !dl.data) return null;
+      return await dl.data.text();
+    } catch {
+      return null;
+    }
+  }
+
   /** List an owner's recent analysis runs. */
   async listRuns(owner: string, limit = 40) {
     if (!this.client) return [];

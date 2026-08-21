@@ -87,6 +87,59 @@ app.use(cors());
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
+// Serverless active-graph rehydration
+//
+// On stateless hosts (Vercel) the in-memory graph does not survive between
+// function invocations. After each analysis we mirror the whole graph to a
+// shared Supabase blob; on a cold request with an empty graph we reload it, so
+// analyze → impact/ask/graph stay consistent across separate invocations.
+// On a normal long-running server this is a no-op (graph is already in memory).
+// ---------------------------------------------------------------------------
+async function saveActiveGraphNow(): Promise<void> {
+  if (!IS_SERVERLESS || !supabaseStore.isConfigured()) return;
+  try {
+    const nodes = dbClient.getNodes();
+    const payload = JSON.stringify({
+      nodes,
+      edges: dbClient.getEdges(),
+      snapshotId: dbClient.getSnapshotId(),
+      commitSha: (nodes.find((n) => n.type === 'Repository')?.commitSha as string) || 'HEAD',
+      activeRepoPath,
+    });
+    await supabaseStore.saveActiveGraph(payload);
+  } catch (err: any) {
+    console.warn(`[active-graph] save failed: ${err.message}`);
+  }
+}
+
+async function ensureGraphLoaded(): Promise<void> {
+  if (!IS_SERVERLESS || !supabaseStore.isConfigured()) return;
+  if (dbClient.getNodes().length > 0) return; // already hydrated in this instance
+  try {
+    const json = await supabaseStore.loadActiveGraph();
+    if (!json) return;
+    const g = JSON.parse(json);
+    dbClient.clear();
+    dbClient.setSnapshotMetadata(g.commitSha || 'HEAD', g.snapshotId || `snap_${Date.now()}`);
+    for (const n of g.nodes || []) dbClient.upsertNode(n);
+    for (const e of g.edges || []) dbClient.addEdge(e);
+    if (g.activeRepoPath) activeRepoPath = g.activeRepoPath;
+  } catch (err: any) {
+    console.warn(`[active-graph] load failed: ${err.message}`);
+  }
+}
+
+// Rehydrate the graph on cold serverless requests before any handler runs.
+app.use(async (_req, _res, next) => {
+  try {
+    await ensureGraphLoaded();
+  } catch {
+    /* non-fatal */
+  }
+  next();
+});
+
+// ---------------------------------------------------------------------------
 // Evaluation-run log
 //
 // Every repository analysis appends a real summary record here so the Dashboard
@@ -396,6 +449,7 @@ app.get('/api/repository/analyze/stream', async (req, res) => {
 
     // Background HydraDB context ingestion (non-blocking).
     void ingestSymbolContext(path.basename(targetDir), dbClient.getSnapshotId()).catch(() => {});
+    await saveActiveGraphNow();
 
     send({
       stage: 'complete',
