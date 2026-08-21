@@ -1114,7 +1114,10 @@ export const ArchitectureGraph: React.FC<ArchitectureGraphProps> = ({
           <div
             style={{
               position: 'relative',
-              width: `${Math.max(view.layout.width, 600)}px`,
+              // Use the graph's natural width so a small graph (bands + a single
+              // card per lane) centers as one group instead of hugging the left
+              // of a forced-wide canvas. margin:auto then centers it in the panel.
+              width: `${view.layout.width}px`,
               height: `${view.layout.height + 40}px`,
               margin: '0 auto',
               padding: '20px',

@@ -34,22 +34,22 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       setCurrentStepIndex((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
     }, 400);
 
-    // Hard fallback timeout: Never allow modal to get stuck for more than 3 seconds!
-    const fallbackTimeout = setTimeout(() => {
-      clearInterval(stepInterval);
-      setIsAnalyzing(false);
-      onAnalysisComplete({});
-    }, 3000);
+    // Safety net: abort only after a genuinely long wait (cloning + parsing a
+    // large repo can take a while), and surface it as an error rather than
+    // silently closing the modal with no result — that would discard the switch.
+    const controller = new AbortController();
+    const abortTimeout = setTimeout(() => controller.abort(), 180000);
 
     try {
       const res = await fetch('/api/repository/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(useDemo ? { useDemo: true } : { repoPath: targetPath || repoPathInput }),
+        signal: controller.signal,
       });
 
       const data = await res.json();
-      clearTimeout(fallbackTimeout);
+      clearTimeout(abortTimeout);
       clearInterval(stepInterval);
 
       if (!res.ok || !data.success) {
@@ -62,10 +62,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         onAnalysisComplete(data);
       }, 300);
     } catch (err: any) {
-      clearTimeout(fallbackTimeout);
+      clearTimeout(abortTimeout);
       clearInterval(stepInterval);
       setIsAnalyzing(false);
-      setErrorMsg(err.message || 'Error executing repository analysis');
+      setErrorMsg(
+        err?.name === 'AbortError'
+          ? 'Analysis timed out. A large repository can take a while — please try again.'
+          : err.message || 'Error executing repository analysis'
+      );
     }
   };
 
