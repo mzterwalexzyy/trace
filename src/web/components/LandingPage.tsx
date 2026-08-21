@@ -226,9 +226,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
         <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>
           TRACE <span style={{ color: textDim, fontWeight: 400, fontSize: 13 }}>[v0.1.0]</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 13, color: textMuted }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontFamily: MONO, fontSize: 13, color: textMuted, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => onEnterDashboard(undefined, true)}
+            style={{
+              fontFamily: MONO,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: '#0a0a0a',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            [ Open Dashboard ]
+          </button>
           <span style={{ cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>[ Docs ]</span>
-          <a href="https://github.com" target="_blank" rel="noreferrer" style={{ color: textMuted, textDecoration: 'none' }}>[ GitHub ]</a>
+          <a href="https://github.com/mzterwalexzyy/trace" target="_blank" rel="noreferrer" style={{ color: textMuted, textDecoration: 'none' }}>[ GitHub ]</a>
           <StatusPill />
         </div>
       </header>

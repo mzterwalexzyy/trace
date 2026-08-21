@@ -163,7 +163,7 @@ code, pre, .mono {
   overflow-wrap: anywhere;
 }
 
-/* Mobile Drawer Overlay */
+/* Mobile Sidebar & Header Mobile Menu Buttons */
 .mobile-sidebar-overlay {
   position: fixed;
   inset: 0;
@@ -173,12 +173,20 @@ code, pre, .mono {
   animation: fadeIn 0.2s ease-in-out;
 }
 
+.header-mobile-menu-btn {
+  display: none !important;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @media (max-width: 768px) {
+  .header-mobile-menu-btn {
+    display: flex !important;
+  }
+
   .card {
     padding: 16px;
     border-radius: 12px;

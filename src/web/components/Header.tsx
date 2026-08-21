@@ -97,6 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
         {onToggleMobileMenu && (
           <button
+            className="header-mobile-menu-btn"
             onClick={onToggleMobileMenu}
             title="Open Menu"
             style={{
@@ -105,7 +106,6 @@ export const Header: React.FC<HeaderProps> = ({
               borderRadius: '8px',
               padding: '7px',
               cursor: 'pointer',
-              display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#09090b',

@@ -15,8 +15,30 @@ import { GraphNode, GraphEdge } from '../core/hydradb/types.js';
 import { StorageModeInfo } from '../core/hydradb/interface.js';
 import { ChangeImpactReport } from '../core/impact/intersection.js';
 
+// URL <-> tab mapping so every view is addressable and survives a refresh.
+const TAB_TO_PATH: Record<TabId, string> = {
+  dashboard: '/dashboard',
+  ask: '/ask',
+  impact: '/change-impact',
+  architecture: '/architecture',
+  runtime: '/runtime',
+  repository: '/repository',
+  hydra: '/hydradb',
+};
+const PATH_TO_TAB: Record<string, TabId> = {
+  '/dashboard': 'dashboard',
+  '/ask': 'ask',
+  '/change-impact': 'impact',
+  '/architecture': 'architecture',
+  '/runtime': 'runtime',
+  '/repository': 'repository',
+  '/hydradb': 'hydra',
+};
+
 export function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('impact');
+  const initialPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const initialTab = PATH_TO_TAB[initialPath];
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'dashboard');
   const [showLanding, setShowLanding] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
@@ -89,6 +111,29 @@ export function App() {
     loadGraphAndRepo();
     loadTraces();
     loadDiffImpact();
+  }, []);
+
+  // Keep the URL in sync with the active view so refresh/back/forward and
+  // shared links land on the right page instead of always the impact page.
+  useEffect(() => {
+    const path = showLanding ? '/' : TAB_TO_PATH[activeTab];
+    if (window.location.pathname !== path) {
+      window.history.pushState({ tab: activeTab, landing: showLanding }, '', path);
+    }
+  }, [activeTab, showLanding]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const tab = PATH_TO_TAB[window.location.pathname];
+      if (tab) {
+        setShowLanding(false);
+        setActiveTab(tab);
+      } else {
+        setShowLanding(true);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   const handleEnterDashboard = (targetPath?: string, useDemo: boolean = true) => {
