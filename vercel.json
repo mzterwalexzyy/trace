@@ -1,14 +1,12 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist-web",
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "demo-app/**"
+  "buildCommand": "mkdir -p public && echo 'Redirecting to Render...' > public/index.html",
+  "outputDirectory": "public",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://trace-ik3d.onrender.com/$1",
+      "permanent": false
     }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
