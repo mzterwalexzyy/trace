@@ -3,6 +3,7 @@ import cors from 'cors';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as tar from 'tar';
 import { execFile } from 'child_process';
 import { HydraDBClient } from '../core/hydradb/client.js';
 import { RepositoryAnalyzer } from '../core/parser/analyzer.js';
@@ -48,18 +49,8 @@ function repoNameFromUrl(url: string): string {
   return raw.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 60) || 'repo';
 }
 
-function cloneRepo(url: string): Promise<string> {
+function gitCloneBinary(clean: string, dest: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const clean = url.trim();
-    if (!isGitUrl(clean)) {
-      reject(new Error('Not a valid Git URL.'));
-      return;
-    }
-    const dest = path.resolve(DATA_ROOT, '.trace', 'repos', repoNameFromUrl(clean));
-    if (fs.existsSync(path.join(dest, '.git'))) {
-      resolve(dest); // already cloned — reuse
-      return;
-    }
     try {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
@@ -81,6 +72,48 @@ function cloneRepo(url: string): Promise<string> {
       }
     );
   });
+}
+
+/**
+ * Fetch a public GitHub repo as a tarball and extract it — no `git` binary
+ * required, so this works on serverless hosts (Vercel) where git is absent.
+ * Falls back to the git binary for non-GitHub URLs or when the tarball fails.
+ */
+async function cloneRepo(url: string): Promise<string> {
+  const clean = url.trim();
+  if (!isGitUrl(clean)) throw new Error('Not a valid Git URL.');
+
+  const dest = path.resolve(DATA_ROOT, '.trace', 'repos', repoNameFromUrl(clean));
+  // Reuse an existing non-empty clone.
+  try {
+    if (fs.existsSync(dest) && fs.readdirSync(dest).some((f) => f !== '_src.tar.gz')) return dest;
+  } catch { /* fall through */ }
+
+  const gh = clean.match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i);
+  if (gh) {
+    const [, owner, repo] = gh;
+    fs.mkdirSync(dest, { recursive: true });
+    // GitHub's tarball endpoint redirects to the default branch archive.
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/tarball`, {
+      headers: { 'User-Agent': 'trace-app', Accept: 'application/vnd.github+json' },
+      redirect: 'follow',
+    });
+    if (res.ok && res.body) {
+      const tmpTar = path.join(dest, '_src.tar.gz');
+      const buf = Buffer.from(await res.arrayBuffer());
+      fs.writeFileSync(tmpTar, buf);
+      // strip:1 drops GitHub's top-level "<owner>-<repo>-<sha>/" wrapper dir.
+      await tar.x({ file: tmpTar, cwd: dest, strip: 1 });
+      try { fs.rmSync(tmpTar, { force: true }); } catch { /* ignore */ }
+      return dest;
+    }
+    if (res.status === 404) throw new Error('Repository not found (is it public?).');
+    if (res.status === 403) throw new Error('GitHub rate limit reached — try again shortly.');
+    // Non-OK but not a clear error → try git as a fallback.
+  }
+
+  // Non-GitHub URL, or tarball unavailable: use the git binary (local dev).
+  return gitCloneBinary(clean, dest);
 }
 
 app.use(cors());

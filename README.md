@@ -18,6 +18,9 @@ and Code as Graphs — code graphs for IDE assistants). It uses the real
 `@hydradb/sdk` for context ingestion and retrieval, and keeps a deterministic
 local graph engine for exact structural analysis.
 
+**Live demo:** https://trace-gules-chi.vercel.app — analyze the bundled demo, or
+paste a public GitHub repo URL to analyze it in the browser.
+
 ---
 
 ## Why it exists
@@ -42,6 +45,12 @@ Two core questions:
    Every reachable route is classified **VERIFIED** (has runtime evidence) or
    **UNOBSERVED** (exists statically, never observed). This distinction is the
    heart of TRACE.
+
+**Ask TRACE** lets you ask these questions in natural language ("what does
+changing calculateTax affect?", "which endpoints are unobserved?"). Answers are
+grounded in the real graph, runtime evidence and HydraDB context. If no AI key is
+configured it answers in Evidence Mode straight from the structured findings, and
+it never fabricates symbols that are not in the analyzed repository.
 
 ## Architecture
 
@@ -155,6 +164,42 @@ npm run server        # API on :3000
 npm run dev           # Vite dev server on :5173, proxies /api to :3000
 ```
 
+## Analyzing a public GitHub repo
+
+Besides the bundled demo and local paths, TRACE can analyze any public GitHub
+repository by URL. Paste a URL like `https://github.com/developit/mitt` into the
+onboarding modal (or the Repository page). TRACE downloads the repo's source
+tarball from the GitHub API, extracts it, and runs the same AST analysis. No git
+binary is required, so this works on serverless hosts too. Private repositories
+need a connected account and are not analyzed from a bare URL.
+
+## Cloud deployment (Vercel + Supabase)
+
+The live demo runs on Vercel with the API as a serverless function
+(`api/index.ts` re-exports the Express app). Two things make a stateless host
+work:
+
+- **Filesystem:** serverless filesystems are read-only except `/tmp`, so on
+  Vercel TRACE writes its `.trace` data and cloned repos under the OS temp dir.
+- **State across invocations:** the in-memory graph does not survive between
+  function calls. After each analysis TRACE mirrors the active graph to Supabase
+  Storage and rehydrates it on a cold request, so Change Impact, Ask and Runtime
+  stay consistent across invocations.
+
+Supabase also backs multi-user persistence (repositories, runs, graphs). It is
+optional: with no `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` set, TRACE uses
+its local `.trace` store and everything still works. See `SUPABASE_SETUP.md` for
+the schema and setup. A `Dockerfile` is included for container deployments (it
+bundles the git binary, so URL analysis there can use either git or the tarball
+path).
+
+Deployment environment variables (all optional):
+
+| Variable | Meaning |
+| --- | --- |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Enable Supabase persistence and serverless graph rehydration. |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Enable the Ask TRACE AI explanation layer. Without a key, Ask uses Evidence Mode. |
+
 ## The demo, in under two minutes
 
 1. Open TRACE and click **Get Started**. TRACE analyzes the bundled demo app.
@@ -206,7 +251,8 @@ add TRACE's tracing SDK (`src/core/runtime`) to it.
   invocation and no user-supplied command path.
 - `POST /api/repository/analyze` resolves and validates the target path and only
   parses source files; combined with localhost binding this keeps file access
-  local to the operator.
+  local to the operator. When given a GitHub URL it fetches only that public
+  repository's source tarball over HTTPS from the GitHub API before parsing.
 - Credentials come from environment variables only and are never printed or
   committed.
 

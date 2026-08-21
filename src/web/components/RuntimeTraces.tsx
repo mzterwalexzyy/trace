@@ -204,7 +204,7 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
             }}
           >
             {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-            Record new trace
+            Run demo trace
           </button>
         </div>
       </div>
