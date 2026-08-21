@@ -41,6 +41,7 @@ export function App() {
   const initialTab = PATH_TO_TAB[initialPath];
   const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'dashboard');
   const [showLanding, setShowLanding] = useState<boolean>(false);
+  const [showAbout, setShowAbout] = useState<boolean>(initialPath === '/about');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -186,8 +187,12 @@ export function App() {
       });
   };
 
+  if (showAbout) {
+    return <About onBack={() => { setShowAbout(false); window.history.pushState({}, '', '/'); }} />;
+  }
+
   if (showLanding) {
-    return <LandingPage onEnterDashboard={handleEnterDashboard} />;
+    return <LandingPage onEnterDashboard={handleEnterDashboard} onOpenDocs={() => { setShowAbout(true); window.history.pushState({}, '', '/about'); }} />;
   }
 
   return (

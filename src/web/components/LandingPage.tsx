@@ -3,6 +3,7 @@ import { GitBranch, Activity, Cloud } from 'lucide-react';
 
 interface LandingPageProps {
   onEnterDashboard: (targetPath?: string, useDemo?: boolean) => void;
+  onOpenDocs?: () => void;
 }
 
 const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -155,7 +156,7 @@ const Badge: React.FC<{ kind: 'verified' | 'unobserved' }> = ({ kind }) => {
   );
 };
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard, onOpenDocs }) => {
   const [pathValue, setPathValue] = useState('');
   const [analyzeHover, setAnalyzeHover] = useState(false);
 
@@ -251,7 +252,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
           >
             [ Open Dashboard ]
           </button>
-          <span className="mobile-nav-hide" style={{ cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>[ Docs ]</span>
+          <span className="mobile-nav-hide" style={{ cursor: 'pointer' }} onClick={() => (onOpenDocs ? onOpenDocs() : onEnterDashboard(undefined, true))}>[ Docs ]</span>
           <a className="mobile-nav-hide" href="https://github.com/mzterwalexzyy/trace" target="_blank" rel="noreferrer" style={{ color: textMuted, textDecoration: 'none' }}>[ GitHub ]</a>
           <StatusPill />
         </div>
