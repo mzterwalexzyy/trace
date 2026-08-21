@@ -8,7 +8,7 @@ interface LandingPageProps {
 const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 const SANS = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
 
-// Faint code glyphs scattered behind the hero. Purely decorative, aria-hidden.
+// Faint code glyphs scattered behind the hero (decorative).
 const GLYPHS: { t: string; top: string; left: string; size: number }[] = [
   { t: '</>', top: '9%', left: '14%', size: 34 },
   { t: '{ }', top: '11%', left: '46%', size: 30 },
@@ -115,10 +115,10 @@ const StatusPill: React.FC = () => {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
         fontFamily: MONO,
-        fontSize: 13,
-        padding: '6px 12px',
+        fontSize: 12,
+        padding: '5px 10px',
         borderRadius: 9999,
         background: 'rgba(99,102,241,0.08)',
         border: '1px solid rgba(99,102,241,0.20)',
@@ -126,7 +126,7 @@ const StatusPill: React.FC = () => {
         whiteSpace: 'nowrap',
       }}
     >
-      <span style={{ width: 7, height: 7, borderRadius: 9999, background: dot, boxShadow: `0 0 8px ${dot}` }} />
+      <span style={{ width: 6, height: 6, borderRadius: 9999, background: dot, boxShadow: `0 0 6px ${dot}` }} />
       {label}
     </span>
   );
@@ -138,10 +138,10 @@ const Badge: React.FC<{ kind: 'verified' | 'unobserved' }> = ({ kind }) => {
     <span
       style={{
         fontFamily: MONO,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 600,
-        padding: '3px 8px',
-        borderRadius: 6,
+        padding: '2px 6px',
+        borderRadius: 5,
         letterSpacing: '0.04em',
         background: v ? '#059669' : '#3f3f46',
         color: v ? '#ecfdf5' : '#d4d4d8',
@@ -176,8 +176,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
 
   const node = (): React.CSSProperties => ({
     fontFamily: MONO,
-    fontSize: 15,
-    padding: '10px 16px',
+    fontSize: 13,
+    padding: '8px 12px',
     borderRadius: 8,
     background: nodeBg,
     border: `1px solid ${border}`,
@@ -187,9 +187,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
   });
 
   return (
-    <div style={{ background: bg, color: textMain, height: '100vh', fontFamily: SANS, overflowX: 'hidden', overflowY: 'auto', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: bg, color: textMain, height: '100vh', width: '100vw', fontFamily: SANS, overflowX: 'hidden', overflowY: 'auto', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        @keyframes traceFloatA { 0%,100%{transform:translate(0,0)} 50%{transform:translate(70px,-56px)} }
+        @keyframes traceFloatB { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-64px,48px)} }
+        @keyframes traceFloatC { 0%,100%{transform:translate(0,0)} 50%{transform:translate(50px,60px)} }
+        @keyframes traceDrift1 { 0%,100%{transform:translate(0,0) rotate(-6deg)} 50%{transform:translate(26px,-34px) rotate(8deg)} }
+        @keyframes traceDrift2 { 0%,100%{transform:translate(0,0) rotate(5deg)} 50%{transform:translate(-30px,-22px) rotate(-7deg)} }
+        @keyframes traceDrift3 { 0%,100%{transform:translate(0,0) rotate(-4deg)} 50%{transform:translate(22px,30px) rotate(9deg)} }
+
+        /* Hide background tech logos & 3 feature cards on mobile for clean fit */
+        @media (max-width: 768px) {
+          .landing-deco-hide { display: none !important; }
+          .landing-feature-band { display: none !important; }
+          .landing-header { padding: 12px 16px !important; }
+          .landing-hero { padding: 16px 16px 24px !important; }
+          .landing-action-row { flex-direction: column !important; width: 100% !important; }
+          .landing-input { width: 100% !important; flex: 1 1 100% !important; }
+          .landing-button { width: 100% !important; }
+        }
+      `}</style>
+
       {/* Top bar */}
       <header
+        className="landing-header"
         style={{
           position: 'relative',
           zIndex: 2,
@@ -198,14 +219,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px 40px',
-          gap: 16,
+          gap: 12,
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, letterSpacing: '0.02em', cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>
-          TRACE <span style={{ color: textDim, fontWeight: 400 }}>[v0.1.0]</span>
+        <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>
+          TRACE <span style={{ color: textDim, fontWeight: 400, fontSize: 13 }}>[v0.1.0]</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 22, fontFamily: MONO, fontSize: 14, color: textMuted }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 13, color: textMuted }}>
           <span style={{ cursor: 'pointer' }} onClick={() => onEnterDashboard(undefined, true)}>[ Docs ]</span>
           <a href="https://github.com" target="_blank" rel="noreferrer" style={{ color: textMuted, textDecoration: 'none' }}>[ GitHub ]</a>
           <StatusPill />
@@ -213,68 +234,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
       </header>
 
       {/* Hero */}
-      <section style={{ position: 'relative', padding: '12px 24px 18px', flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {/* Decorative backdrop: floating color fades, code glyphs, and language logos */}
-        <style>{`
-          @keyframes traceFloatA { 0%,100%{transform:translate(0,0)} 50%{transform:translate(70px,-56px)} }
-          @keyframes traceFloatB { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-64px,48px)} }
-          @keyframes traceFloatC { 0%,100%{transform:translate(0,0)} 50%{transform:translate(50px,60px)} }
-          @keyframes traceDrift1 { 0%,100%{transform:translate(0,0) rotate(-6deg)} 50%{transform:translate(26px,-34px) rotate(8deg)} }
-          @keyframes traceDrift2 { 0%,100%{transform:translate(0,0) rotate(5deg)} 50%{transform:translate(-30px,-22px) rotate(-7deg)} }
-          @keyframes traceDrift3 { 0%,100%{transform:translate(0,0) rotate(-4deg)} 50%{transform:translate(22px,30px) rotate(9deg)} }
-        `}</style>
+      <section className="landing-hero" style={{ position: 'relative', padding: '12px 24px 24px', flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {/* Decorative backdrop */}
         <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
           {/* floating colored glows */}
-          <div style={{ position: 'absolute', top: '-10%', left: '0%', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.42), transparent 60%)', filter: 'blur(18px)', animation: 'traceFloatA 14s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', top: '-6%', right: '-2%', width: 520, height: 520, borderRadius: '50%', background: 'radial-gradient(circle, rgba(56,189,248,0.40), transparent 60%)', filter: 'blur(18px)', animation: 'traceFloatB 17s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', bottom: '-16%', left: '14%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.34), transparent 60%)', filter: 'blur(22px)', animation: 'traceFloatC 20s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', bottom: '-12%', right: '8%', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,0.34), transparent 60%)', filter: 'blur(20px)', animation: 'traceFloatA 18s ease-in-out infinite' }} />
-          {/* faint code glyphs */}
-          {GLYPHS.map((g, i) => (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                top: g.top,
-                left: g.left,
-                fontFamily: MONO,
-                fontSize: g.size,
-                color: '#0a0a0a',
-                opacity: 0.07,
-                userSelect: 'none',
-              }}
-            >
-              {g.t}
-            </span>
-          ))}
-          {/* floating language logos */}
-          {TECH.map((t, i) => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                top: t.top,
-                left: t.left,
-                opacity: 0.62,
-                animation: `${t.anim} ${t.dur}s ease-in-out infinite`,
-                filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.10))',
-              }}
-            >
-              <TechLogo name={t.name} size={t.size} />
-            </div>
-          ))}
-          {/* soft white vignette so the center stays readable */}
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(115% 78% at 50% 42%, rgba(255,255,255,0.60) 24%, rgba(255,255,255,0.10) 70%, transparent 100%)' }} />
+          <div style={{ position: 'absolute', top: '-10%', left: '0%', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 60%)', filter: 'blur(18px)', animation: 'traceFloatA 14s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', top: '-6%', right: '-2%', width: 520, height: 520, borderRadius: '50%', background: 'radial-gradient(circle, rgba(56,189,248,0.30), transparent 60%)', filter: 'blur(18px)', animation: 'traceFloatB 17s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', bottom: '-16%', left: '14%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.25), transparent 60%)', filter: 'blur(22px)', animation: 'traceFloatC 20s ease-in-out infinite' }} />
+
+          {/* faint code glyphs (hidden on mobile) */}
+          <div className="landing-deco-hide">
+            {GLYPHS.map((g, i) => (
+              <span
+                key={i}
+                style={{
+                  position: 'absolute',
+                  top: g.top,
+                  left: g.left,
+                  fontFamily: MONO,
+                  fontSize: g.size,
+                  color: '#0a0a0a',
+                  opacity: 0.07,
+                  userSelect: 'none',
+                }}
+              >
+                {g.t}
+              </span>
+            ))}
+            {/* floating language logos (hidden on mobile) */}
+            {TECH.map((t, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  top: t.top,
+                  left: t.left,
+                  opacity: 0.55,
+                  animation: `${t.anim} ${t.dur}s ease-in-out infinite`,
+                  filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.10))',
+                }}
+              >
+                <TechLogo name={t.name} size={t.size} />
+              </div>
+            ))}
+          </div>
+
+          {/* soft white vignette */}
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(115% 78% at 50% 42%, rgba(255,255,255,0.70) 24%, rgba(255,255,255,0.15) 70%, transparent 100%)' }} />
         </div>
 
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 980, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 980, margin: '0 auto', textAlign: 'center', width: '100%' }}>
           <span
             style={{
               fontFamily: MONO,
-              fontSize: 12.5,
-              letterSpacing: '0.18em',
+              fontSize: 11.5,
+              letterSpacing: '0.16em',
               color: textMuted,
-              padding: '7px 14px',
+              padding: '6px 14px',
               border: `1px solid ${border}`,
               borderRadius: 9999,
               display: 'inline-block',
@@ -287,50 +303,55 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
             style={{
               fontFamily: SANS,
               fontWeight: 800,
-              fontSize: 'clamp(2.2rem, 5.4vw, 3.9rem)',
-              lineHeight: 1.02,
+              fontSize: 'clamp(1.75rem, 5.2vw, 3.8rem)',
+              lineHeight: 1.05,
               letterSpacing: '-0.03em',
-              margin: '18px 0 0',
+              margin: '14px 0 0',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
             }}
           >
             Know what your code change touches.
           </h1>
 
-          <p style={{ fontFamily: MONO, fontSize: 'clamp(0.9rem, 1.5vw, 1.05rem)', color: textMuted, margin: '16px auto 0', maxWidth: 640 }}>
+          <p style={{ fontFamily: MONO, fontSize: 'clamp(0.85rem, 1.4vw, 1.05rem)', color: textMuted, margin: '14px auto 0', maxWidth: 640, lineHeight: 1.5 }}>
             Deterministic AST dependency mapping meets real execution evidence.
           </p>
 
           {/* Action row */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', margin: '20px auto 0', maxWidth: 700 }}>
+          <div className="landing-action-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', margin: '20px auto 0', maxWidth: 700 }}>
             <input
+              className="landing-input"
               value={pathValue}
               onChange={(e) => setPathValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && analyze()}
               placeholder="[ /projects/demo-app ]"
               spellCheck={false}
               style={{
-                flex: '1 1 320px',
+                flex: '1 1 300px',
                 fontFamily: MONO,
-                fontSize: 15,
-                padding: '13px 18px',
+                fontSize: 14,
+                padding: '12px 16px',
                 borderRadius: 10,
                 background: '#ffffff',
                 border: `1px solid ${border}`,
                 color: textMain,
                 outline: 'none',
+                boxSizing: 'border-box',
               }}
               onFocus={(e) => (e.currentTarget.style.borderColor = '#0a0a0a')}
               onBlur={(e) => (e.currentTarget.style.borderColor = border)}
             />
             <button
+              className="landing-button"
               onClick={analyze}
               onMouseEnter={() => setAnalyzeHover(true)}
               onMouseLeave={() => setAnalyzeHover(false)}
               style={{
                 fontFamily: MONO,
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: 600,
-                padding: '14px 22px',
+                padding: '12px 20px',
                 borderRadius: 10,
                 background: analyzeHover ? '#26262b' : '#0a0a0a',
                 color: '#fafafa',
@@ -338,6 +359,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 transition: 'background 120ms ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
               }}
             >
               [ Analyze Repository ]
@@ -349,44 +374,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
             style={{
               margin: '16px auto 0',
               maxWidth: 780,
+              width: '100%',
               textAlign: 'left',
               background: cardBg,
               border: `1px solid ${border}`,
               borderRadius: 14,
               overflow: 'hidden',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              boxSizing: 'border-box',
             }}
           >
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${border}` }}>
-              <span style={{ fontFamily: SANS, fontWeight: 600, fontSize: 16 }}>Trace Calculation Demo</span>
+            <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}` }}>
+              <span style={{ fontFamily: SANS, fontWeight: 600, fontSize: 15 }}>Trace Calculation Demo</span>
             </div>
 
-            <div style={{ padding: '14px 20px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '14px 16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflowX: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', minWidth: 'fit-content' }}>
                 {/* Left node */}
                 <div style={node()}>calculateTax()</div>
 
                 {/* Connectors */}
-                <svg width="80" height="112" viewBox="0 0 80 112" style={{ flexShrink: 0 }} aria-hidden>
+                <svg width="60" height="96" viewBox="0 0 80 112" style={{ flexShrink: 0 }} aria-hidden>
                   <path d="M0 56 C36 56 44 26 80 26" fill="none" stroke={border} strokeWidth="1.5" />
                   <path d="M0 56 C36 56 44 86 80 86" fill="none" stroke={border} strokeWidth="1.5" />
                 </svg>
 
                 {/* Right nodes */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px', borderRadius: 8, background: nodeBg, border: `1px solid ${border}` }}>
-                    <span style={{ fontFamily: MONO, fontSize: 15 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px', borderRadius: 8, background: nodeBg, border: `1px solid ${border}` }}>
+                    <span style={{ fontFamily: MONO, fontSize: 13 }}>
                       <span style={{ fontWeight: 600 }}>POST</span> /api/checkout
                     </span>
                     <Badge kind="verified" />
-                    <span style={{ fontFamily: MONO, fontSize: 13, color: textDim, marginLeft: 'auto' }}>14ms</span>
+                    <span style={{ fontFamily: MONO, fontSize: 12, color: textDim, marginLeft: 'auto' }}>14ms</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px', borderRadius: 8, background: nodeBg, border: `1px solid ${border}` }}>
-                    <span style={{ fontFamily: MONO, fontSize: 15, color: textMuted }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px', borderRadius: 8, background: nodeBg, border: `1px solid ${border}` }}>
+                    <span style={{ fontFamily: MONO, fontSize: 13, color: textMuted }}>
                       <span style={{ fontWeight: 600 }}>POST</span> /api/invoice
                     </span>
                     <Badge kind="unobserved" />
-                    <span style={{ fontFamily: MONO, fontSize: 13, color: textDim, marginLeft: 'auto' }}>AST call</span>
+                    <span style={{ fontFamily: MONO, fontSize: 12, color: textDim, marginLeft: 'auto' }}>AST call</span>
                   </div>
                 </div>
               </div>
@@ -395,8 +422,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
         </div>
       </section>
 
-      {/* Feature band */}
+      {/* Feature band (Desktop only — hidden on mobile via CSS) */}
       <section
+        className="landing-feature-band"
         style={{
           flexShrink: 0,
           background: '#fafafa',
