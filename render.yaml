@@ -26,7 +26,15 @@ services:
         sync: false
       - key: HYDRA_DB_DATABASE
         sync: false
-      # Optional: enables the Ask TRACE AI explanation layer. Leave unset for
-      # Evidence Mode.
-      - key: OPENAI_API_KEY
+      # Optional: enables the Ask TRACE AI explanation layer. Leave ALL of these
+      # unset to run in deterministic Evidence Mode (fully functional). To use an
+      # OpenAI-compatible gateway (zenmux / opencode), set the key AND its base
+      # URL AND a model id — a key alone would be sent to api.openai.com and fail.
+      - key: API_KEY
+        sync: false
+      - key: Main_Base_URL
+        sync: false
+      - key: Main_Models
+        sync: false
+      - key: Fall_Back_Model
         sync: false
