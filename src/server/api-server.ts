@@ -348,6 +348,9 @@ app.post('/api/repository/analyze', async (req, res) => {
       }).catch((err) => console.warn(`[supabase] persist warning: ${err.message}`));
     }
 
+    // Persist the active graph so cold serverless requests can rehydrate it.
+    await saveActiveGraphNow();
+
     return res.json({
       success: true,
       repoName: path.basename(targetDir),
@@ -688,6 +691,7 @@ app.post('/api/runtime/run', async (req, res) => {
 
     const result = await runDemoScenario(dbClient, demoDir, scenario);
     const tracesCount = dbClient.getExecutionTraces().length;
+    await saveActiveGraphNow();
 
     return res.json({
       success: true,
@@ -707,7 +711,7 @@ app.post('/api/runtime/run', async (req, res) => {
 // This is the "Upload trace" path — bring execution evidence recorded elsewhere
 // (or earlier) and connect it to the current architecture graph. Accepts the
 // TRACE trace shape: { traceNode, spans }. Spans link to static symbols by name.
-app.post('/api/runtime/import', (req, res) => {
+app.post('/api/runtime/import', async (req, res) => {
   try {
     const trace = req.body?.trace || req.body;
     const traceNode = trace?.traceNode;
@@ -739,6 +743,7 @@ app.post('/api/runtime/import', (req, res) => {
       count++;
     }
     dbClient.saveState();
+    await saveActiveGraphNow();
     return res.json({ success: true, traceId, spanCount: count, message: `Imported ${count} spans for ${traceNode.name}.` });
   } catch (err: any) {
     return res.status(500).json({ error: `Trace import failed: ${err.message}` });
