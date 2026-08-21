@@ -11,6 +11,7 @@ import { SymbolSidePanel } from './components/SymbolSidePanel.js';
 import { Dashboard } from './components/Dashboard.js';
 import { AskTrace } from './components/AskTrace.js';
 import { HydraDBView } from './components/HydraDBView.js';
+import { About } from './components/About.js';
 import { GraphNode, GraphEdge } from '../core/hydradb/types.js';
 import { StorageModeInfo } from '../core/hydradb/interface.js';
 import { ChangeImpactReport } from '../core/impact/intersection.js';

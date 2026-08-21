@@ -84,7 +84,7 @@ const TechLogo: React.FC<{ name: string; size: number }> = ({ name, size }) => {
 
 const StatusPill: React.FC = () => {
   const [label, setLabel] = useState('HydraDB Ready');
-  const [dot, setDot] = useState('#6366f1');
+  const [dot, setDot] = useState('#10b981');
 
   useEffect(() => {
     let alive = true;
@@ -95,10 +95,10 @@ const StatusPill: React.FC = () => {
         const s = d?.storageMode?.status;
         if (s === 'Connected') {
           setLabel('HydraDB Connected');
-          setDot('#34d399');
+          setDot('#059669');
         } else if (s === 'Configured') {
           setLabel('HydraDB Ready');
-          setDot('#6366f1');
+          setDot('#4f46e5');
         } else {
           setLabel('Local Mode');
           setDot('#71717a');
@@ -115,18 +115,20 @@ const StatusPill: React.FC = () => {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 6,
+        gap: 7,
         fontFamily: MONO,
         fontSize: 12,
-        padding: '5px 10px',
+        fontWeight: 600,
+        padding: '5px 11px',
         borderRadius: 9999,
-        background: 'rgba(99,102,241,0.08)',
-        border: '1px solid rgba(99,102,241,0.20)',
-        color: '#3f3f46',
+        background: '#ffffff',
+        border: '1px solid #d4d4d8',
+        color: '#09090b',
         whiteSpace: 'nowrap',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}
     >
-      <span style={{ width: 6, height: 6, borderRadius: 9999, background: dot, boxShadow: `0 0 6px ${dot}` }} />
+      <span style={{ width: 7, height: 7, borderRadius: 9999, background: dot, boxShadow: `0 0 6px ${dot}` }} />
       {label}
     </span>
   );
@@ -196,18 +198,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
         @keyframes traceDrift2 { 0%,100%{transform:translate(0,0) rotate(5deg)} 50%{transform:translate(-30px,-22px) rotate(-7deg)} }
         @keyframes traceDrift3 { 0%,100%{transform:translate(0,0) rotate(-4deg)} 50%{transform:translate(22px,30px) rotate(9deg)} }
 
-        /* Hide background tech logos, 3 feature cards, and plain secondary links on mobile for single-line header fit */
+        /* Mobile Layout & Vertical Stretching Rules */
         @media (max-width: 768px) {
-          .landing-container { min-height: 100vh !important; height: auto !important; }
+          .landing-container { height: 100vh !important; min-height: 100vh !important; }
           .landing-deco-hide { display: none !important; }
           .landing-feature-band { display: none !important; }
           .mobile-nav-hide { display: none !important; }
           .landing-header { padding: 12px 16px !important; }
-          .landing-hero { padding: 10px 16px 20px !important; justify-content: flex-start !important; flex: 1 0 auto !important; }
-          .landing-action-row { flex-direction: column !important; width: 100% !important; margin-top: 14px !important; }
+          .landing-hero { padding: 14px 16px 20px !important; flex: 1 1 auto !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
+          .landing-hero-content { flex: 1 !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
+          .landing-action-row { flex-direction: column !important; width: 100% !important; margin-top: 12px !important; }
           .landing-input { width: 100% !important; flex: 1 1 100% !important; }
           .landing-button { width: 100% !important; }
-          .landing-demo-card { margin-top: 14px !important; }
+          .landing-demo-card { margin-top: 14px !important; flex: 1 !important; min-height: 160px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
           .landing-mobile-footer { display: flex !important; }
         }
       `}</style>
@@ -304,40 +307,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(115% 78% at 50% 42%, rgba(255,255,255,0.70) 24%, rgba(255,255,255,0.15) 70%, transparent 100%)' }} />
         </div>
 
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 980, margin: '0 auto', textAlign: 'center', width: '100%' }}>
-          <span
-            style={{
-              fontFamily: MONO,
-              fontSize: 11.5,
-              letterSpacing: '0.16em',
-              color: textMuted,
-              padding: '6px 14px',
-              border: `1px solid ${border}`,
-              borderRadius: 9999,
-              display: 'inline-block',
-            }}
-          >
-            ENGINEERING INTELLIGENCE
-          </span>
+        <div className="landing-hero-content" style={{ position: 'relative', zIndex: 1, maxWidth: 980, margin: '0 auto', textAlign: 'center', width: '100%' }}>
+          <div>
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: 11.5,
+                letterSpacing: '0.16em',
+                color: textMuted,
+                padding: '6px 14px',
+                border: `1px solid ${border}`,
+                borderRadius: 9999,
+                display: 'inline-block',
+              }}
+            >
+              ENGINEERING INTELLIGENCE
+            </span>
 
-          <h1
-            style={{
-              fontFamily: SANS,
-              fontWeight: 800,
-              fontSize: 'clamp(1.75rem, 5.2vw, 3.8rem)',
-              lineHeight: 1.05,
-              letterSpacing: '-0.03em',
-              margin: '14px 0 0',
-              wordBreak: 'break-word',
-              overflowWrap: 'anywhere',
-            }}
-          >
-            Know what your code change touches.
-          </h1>
+            <h1
+              style={{
+                fontFamily: SANS,
+                fontWeight: 800,
+                fontSize: 'clamp(1.75rem, 5.2vw, 3.8rem)',
+                lineHeight: 1.05,
+                letterSpacing: '-0.03em',
+                margin: '14px 0 0',
+                wordBreak: 'break-word',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              Know what your code change touches.
+            </h1>
 
-          <p style={{ fontFamily: MONO, fontSize: 'clamp(0.85rem, 1.4vw, 1.05rem)', color: textMuted, margin: '14px auto 0', maxWidth: 640, lineHeight: 1.5 }}>
-            Deterministic AST dependency mapping meets real execution evidence.
-          </p>
+            <p style={{ fontFamily: MONO, fontSize: 'clamp(0.85rem, 1.4vw, 1.05rem)', color: textMuted, margin: '14px auto 0', maxWidth: 640, lineHeight: 1.5 }}>
+              Deterministic AST dependency mapping meets real execution evidence.
+            </p>
+          </div>
 
           {/* Action row */}
           <div className="landing-action-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', margin: '20px auto 0', maxWidth: 700 }}>
@@ -422,7 +427,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
                 </svg>
 
                 {/* Right nodes */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px', borderRadius: 8, background: nodeBg, border: `1px solid ${border}` }}>
                     <span style={{ fontFamily: MONO, fontSize: 13 }}>
                       <span style={{ fontWeight: 600 }}>POST</span> /api/checkout
@@ -490,9 +495,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterDashboard }) =>
         className="landing-mobile-footer"
         style={{
           display: 'none',
-          padding: '14px 20px',
+          padding: '12px 18px',
           borderTop: '1px solid #e6e6e9',
-          background: '#fafafa',
+          background: '#ffffff',
           fontSize: '12px',
           fontFamily: MONO,
           color: textMuted,
