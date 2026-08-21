@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
 } from 'lucide-react';
 import type { TabId } from './Sidebar.js';
+import { usePaged, Pager } from './Pager.js';
 
 interface RunSummary {
   id: string;
@@ -230,6 +231,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onConnectRepo,
   const empty = !loading && (t?.reposEvaluated ?? 0) === 0;
   const query = q.trim().toLowerCase();
   const filteredRuns = (data?.recentRuns || []).filter((r) => !query || r.repoName.toLowerCase().includes(query));
+  const runsPage = usePaged(filteredRuns, 5);
   const filteredTop = (data?.topRepos || []).filter((r) => !query || r.repoName.toLowerCase().includes(query));
 
   const openRepo = (repoPath: string, repoName: string) => {
@@ -291,7 +293,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onConnectRepo,
           </div>
 
           {/* Recent runs + trend */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: '18px', alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '18px', alignItems: 'stretch' }}>
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>Recent evaluation runs</span>
@@ -307,7 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onConnectRepo,
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRuns.map((run) => (
+                    {runsPage.pageItems.map((run) => (
                       <tr key={run.id} onClick={() => openRepo(run.repoPath, run.repoName)} title={`Open ${run.repoName} in Architecture`} style={{ cursor: 'pointer' }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
@@ -322,6 +324,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onConnectRepo,
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div style={{ padding: '0 18px 14px' }}>
+                <Pager page={runsPage.page} totalPages={runsPage.totalPages} setPage={runsPage.setPage} total={runsPage.total} label="runs" />
               </div>
             </div>
 
@@ -339,7 +344,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onConnectRepo,
           </div>
 
           {/* Top repositories + intelligence */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: '18px', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '18px', alignItems: 'start' }}>
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>Top repositories by size</span>

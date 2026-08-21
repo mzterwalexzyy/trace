@@ -306,6 +306,114 @@ app.post('/api/repository/analyze', async (req, res) => {
   }
 });
 
+// Repository analysis with REAL progress (Server-Sent Events). Each event marks
+// an actual completed stage with real counts — not a fake climbing animation.
+// EventSource is GET-only, so params come via the query string.
+app.get('/api/repository/analyze/stream', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  (res as any).flushHeaders?.();
+  const send = (o: any) => res.write(`data: ${JSON.stringify(o)}\n\n`);
+  const tick = () => new Promise((r) => setImmediate(r));
+
+  try {
+    const useDemo = req.query.useDemo === 'true';
+    const rawPath = String(req.query.repoPath || '');
+    let targetDir = activeRepoPath;
+
+    send({ stage: 'validate', pct: 5, detail: 'Preparing repository' });
+    await tick();
+
+    if (useDemo || rawPath === 'demo' || rawPath === 'demo-app') {
+      targetDir = path.resolve(process.cwd(), 'demo-app');
+    } else if (rawPath) {
+      const clean = rawPath.trim().replace(/^["']|["']$/g, '');
+      if (isGitUrl(clean)) {
+        send({ stage: 'clone', pct: 12, detail: 'Cloning repository from Git…' });
+        await tick();
+        targetDir = await cloneRepo(clean);
+      } else {
+        targetDir = path.resolve(clean);
+      }
+    }
+
+    if (!fs.existsSync(targetDir) || !fs.statSync(targetDir).isDirectory()) {
+      send({ stage: 'error', error: `Repository path does not exist: ${targetDir}` });
+      return res.end();
+    }
+    activeRepoPath = targetDir;
+
+    send({ stage: 'discover', pct: 25, detail: 'Discovering source files…' });
+    await tick();
+
+    const analyzer = new RepositoryAnalyzer({ repoPath: targetDir }, dbClient);
+    send({ stage: 'parse', pct: 45, detail: 'Parsing AST & building the dependency graph…' });
+    await tick();
+
+    // The heavy, deterministic pass (blocks while it runs — the "parse" stage
+    // reflects this real work; the next event fires only once it truly finishes).
+    const result = analyzer.analyze();
+
+    const nodes = dbClient.getNodes();
+    const functionsCount = nodes.filter((n) => n.type === 'Function' || n.type === 'Method').length;
+    const endpointsCount = nodes.filter((n) => n.type === 'APIEndpoint').length;
+    const dbSchemasCount = nodes.filter((n) => n.type === 'DBSchema').length;
+    const testsCount = nodes.filter((n) => Boolean(n.metadata?.isTest)).length;
+    const filesCount = nodes.filter((n) => n.type === 'File').length;
+
+    send({ stage: 'detect', pct: 82, detail: `Found ${functionsCount} symbols, ${endpointsCount} endpoints, ${dbSchemasCount} DB dependencies` });
+    await tick();
+
+    recordRun({
+      id: `run_${Date.now()}`,
+      repoName: path.basename(targetDir),
+      repoPath: targetDir,
+      branch: (nodes.find((n) => n.type === 'Repository')?.metadata?.branch as string) || 'main',
+      commitSha: (nodes.find((n) => n.type === 'Repository')?.commitSha as string) || 'HEAD',
+      snapshotId: dbClient.getSnapshotId(),
+      status: 'Completed',
+      startedAt: new Date().toISOString(),
+      files: filesCount,
+      functions: functionsCount,
+      endpoints: endpointsCount,
+      dbSchemas: dbSchemasCount,
+      tests: testsCount,
+      nodeCount: result.nodeCount,
+      edgeCount: result.edgeCount,
+    });
+
+    send({ stage: 'persist', pct: 94, detail: 'Persisting snapshot…' });
+    await tick();
+
+    // Background HydraDB context ingestion (non-blocking).
+    void ingestSymbolContext(path.basename(targetDir), dbClient.getSnapshotId()).catch(() => {});
+
+    send({
+      stage: 'complete',
+      pct: 100,
+      detail: 'Analysis complete',
+      summary: {
+        repoName: path.basename(targetDir),
+        repoPath: targetDir,
+        nodeCount: result.nodeCount,
+        edgeCount: result.edgeCount,
+        functionsCount,
+        endpointsCount,
+        dbSchemasCount,
+        testsCount,
+        filesCount,
+        snapshotId: dbClient.getSnapshotId(),
+      },
+    });
+    res.end();
+  } catch (err: any) {
+    send({ stage: 'error', error: err.message || 'Analysis failed' });
+    res.end();
+  }
+});
+
 // API: Backend (Supabase) status — configured? reachable? can it write?
 app.get('/api/backend/status', async (req, res) => {
   const status = supabaseStore.getStatus();

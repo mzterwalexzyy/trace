@@ -67,6 +67,15 @@ export const SymbolSidePanel: React.FC<SymbolSidePanelProps> = ({
   const [pinned, setPinned] = useState<boolean>(false);
   const [hovered, setHovered] = useState<boolean>(false);
   const [tab, setTab] = useState<PanelTab>('overview');
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Kept before any early return so hook order stays stable (Rules of Hooks).
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // The panel is a thin strip by default and expands only while hovered (or
   // when pinned). This keeps the graph/impact space free and never traps the
@@ -158,19 +167,21 @@ export const SymbolSidePanel: React.FC<SymbolSidePanelProps> = ({
   };
   const summary = typeSummaries[symbolNode.type] || 'A node in the TRACE dependency graph.';
 
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         // Fixed drawer so it works in normal AND fullscreen graph mode (which
-        // renders a fixed overlay). Collapsed to a thin strip; expands on hover.
+        // renders a fixed overlay). Collapsed to a thin strip; expands on hover/mobile.
         position: 'fixed',
         top: 0,
         right: 0,
         height: '100vh',
         zIndex: 600,
-        width: expanded ? '380px' : '46px',
+        width: isMobile ? (expanded ? '100vw' : '40px') : (expanded ? '380px' : '46px'),
+        maxWidth: '100vw',
         background: 'var(--bg-secondary)',
         borderLeft: `2px solid ${pinned ? '#0a0a0a' : 'var(--border-color)'}`,
         boxShadow: expanded ? '-10px 0 30px rgba(0,0,0,0.10)' : 'none',

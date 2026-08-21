@@ -216,12 +216,12 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
 
       {/* 3. Main 2-Column Content Grid */}
       {result && !loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '24px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', alignItems: 'start' }}>
           {/* LEFT COLUMN */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
             {/* Answer Box */}
-            <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0 }}>{isAI ? 'AI Explanation' : 'Answer'}</h3>
                   <span style={{ fontSize: '11px', fontWeight: '600', color: isAI ? '#047857' : '#71717a', background: isAI ? '#ecfdf5' : '#f4f4f5', border: `1px solid ${isAI ? '#a7f3d0' : '#e4e4e7'}`, padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -238,7 +238,7 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
               </div>
 
               {/* Summary 4 KPI Metric Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px' }}>
                 <div style={{ background: '#f4f4f5', borderRadius: '10px', padding: '12px' }}>
                   <Code2 size={16} style={{ color: '#09090b', marginBottom: '6px' }} />
                   <div style={{ fontSize: '18px', fontWeight: '800', color: '#09090b' }}>{affectedCount}</div>
@@ -299,6 +299,7 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
                       </div>
                     );
                   })}
+                  <Pager page={epPage.page} totalPages={epPage.totalPages} setPage={epPage.setPage} total={epPage.total} label="routes" />
                 </div>
               )}
 
@@ -402,7 +403,7 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
                 {hydraContext.length === 0 ? (
                   <div style={{ fontSize: '12px', color: '#a1a1aa' }}>No related context found for this question.</div>
                 ) : (
-                  hydraContext.slice(0, 5).map((c: any, i: number) => (
+                  ctxPage.pageItems.map((c: any, i: number) => (
                     <div key={i} style={{ border: '1px solid #f4f4f5', borderRadius: '8px', padding: '10px 12px', fontSize: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px', gap: '8px' }}>
                         <div style={{ fontWeight: '700', color: '#09090b', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -414,6 +415,7 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
                     </div>
                   ))
                 )}
+                <Pager page={ctxPage.page} totalPages={ctxPage.totalPages} setPage={ctxPage.setPage} total={ctxPage.total} label="records" />
               </div>
 
               <button

@@ -18,6 +18,7 @@ import { ChangeImpactReport } from '../core/impact/intersection.js';
 export function App() {
   const [activeTab, setActiveTab] = useState<TabId>('impact');
   const [showLanding, setShowLanding] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
@@ -144,8 +145,8 @@ export function App() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#fafafa', color: '#09090b', fontFamily: 'Inter, sans-serif' }}>
-      {/* Left Sidebar */}
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#fafafa', color: '#09090b', fontFamily: 'Inter, sans-serif' }}>
+      {/* Sidebar (Desktop + Mobile Drawer) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -153,6 +154,8 @@ export function App() {
         snapshotId={snapshotId}
         onChangeRepoClick={() => setShowOnboarding(true)}
         onGoToLanding={() => setShowLanding(true)}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -166,9 +169,10 @@ export function App() {
           onSelectSymbol={handleSelectSymbolNode}
           onRefreshHydraPing={handlePingHydra}
           onGoToLanding={() => setShowLanding(true)}
+          onToggleMobileMenu={() => setMobileMenuOpen((v) => !v)}
         />
 
-        <main style={{ paddingBottom: '40px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <main style={{ paddingBottom: '40px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {activeTab === 'dashboard' && (
             <Dashboard
               onNavigate={setActiveTab}

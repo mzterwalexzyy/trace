@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderGit2, BookOpen, Settings, Plus, Check, ChevronsUpDown } from 'lucide-react';
+import { FolderGit2, BookOpen, Settings, Plus, Check, ChevronsUpDown, Menu } from 'lucide-react';
 import { StorageModeInfo } from '../../core/hydradb/interface.js';
 import { SymbolSearch } from './SymbolSearch.js';
 import { GraphNode } from '../../core/hydradb/types.js';
@@ -23,6 +23,7 @@ interface HeaderProps {
   onSelectSymbol: (symbolNode: GraphNode) => void;
   onRefreshHydraPing?: () => void;
   onGoToLanding?: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectSymbol,
   onRefreshHydraPing,
   onGoToLanding,
+  onToggleMobileMenu,
 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [repos, setRepos] = React.useState<RepoOption[]>([]);
@@ -53,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
+
   const isCloud = storageModeInfo?.mode === 'HydraDB Cloud';
   const status = storageModeInfo?.status || 'Offline';
 
@@ -76,170 +79,175 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '12px 24px',
-      background: '#ffffff',
-      borderBottom: '1px solid #e4e4e7',
-      gap: '16px',
-    }}>
-      {/* Repo Switcher */}
-      <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <button
-          onClick={() => setMenuOpen((o) => !o)}
-          style={{
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#09090b',
-            background: menuOpen ? '#f0f0f2' : '#fafafa',
-            padding: '6px 12px',
-            borderRadius: '8px',
-            border: '1px solid #e4e4e7',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-          }}
-        >
-          <FolderGit2 size={15} style={{ color: '#71717a' }} />
-          <span>{repoName || 'Select repository'}</span>
-          <ChevronsUpDown size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
-        </button>
-
-        {menuOpen && (
-          <div
+    <header
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 16px',
+        background: '#ffffff',
+        borderBottom: '1px solid #e4e4e7',
+        gap: '12px',
+        flexWrap: 'wrap',
+        boxSizing: 'border-box',
+        width: '100%',
+      }}
+    >
+      {/* Left section: Mobile Hamburger + Repo Switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+        {onToggleMobileMenu && (
+          <button
+            onClick={onToggleMobileMenu}
+            title="Open Menu"
             style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              minWidth: '280px',
               background: '#ffffff',
-              border: '1px solid var(--border-color)',
-              borderRadius: '10px',
-              boxShadow: '0 12px 30px -8px rgba(0,0,0,0.18)',
-              zIndex: 500,
-              overflow: 'hidden',
+              border: '1px solid #e4e4e7',
+              borderRadius: '8px',
+              padding: '7px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#09090b',
             }}
           >
-            <div style={{ padding: '8px 12px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-dim)', borderBottom: '1px solid var(--border-subtle)' }}>
-              Analyzed repositories
-            </div>
-            <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
+            <Menu size={18} />
+          </button>
+        )}
+
+        {/* Repo Switcher Dropdown */}
+        <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#09090b',
+              background: menuOpen ? '#f0f0f2' : '#fafafa',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid #e4e4e7',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              maxWidth: '160px',
+            }}
+          >
+            <FolderGit2 size={15} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repoName}</span>
+            <ChevronsUpDown size={13} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+          </button>
+
+          {menuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                width: '260px',
+                background: '#ffffff',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '6px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+              }}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-dim)', padding: '6px 8px 4px' }}>
+                Select repository
+              </div>
               {repos.length === 0 ? (
-                <div style={{ padding: '14px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>No repositories analyzed yet.</div>
+                <div style={{ padding: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>Loading repositories...</div>
               ) : (
                 repos.map((r) => {
-                  const active = r.repoName === repoName;
+                  const selected = r.repoName === repoName;
                   return (
                     <button
-                      key={r.repoName}
+                      key={r.repoPath}
                       onClick={() => {
                         setMenuOpen(false);
-                        if (!active && onSwitchRepo) onSwitchRepo(r.repoPath);
+                        if (onSwitchRepo) onSwitchRepo(r.repoPath);
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f8')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px',
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '10px 12px',
+                        justifyContent: 'space-between',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
                         border: 'none',
-                        background: 'transparent',
+                        background: selected ? '#f2f2f3' : 'transparent',
+                        color: '#0a0a0a',
+                        fontSize: '12.5px',
+                        fontWeight: selected ? 700 : 500,
                         cursor: 'pointer',
+                        textAlign: 'left',
+                        width: '100%',
                       }}
                     >
-                      <FolderGit2 size={15} style={{ color: active ? '#0a0a0a' : '#a1a1aa', flexShrink: 0 }} />
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repoName}</span>
-                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>{r.functions} symbols · {r.endpoints} endpoints</span>
-                      </span>
-                      {active && <Check size={15} style={{ color: '#0a0a0a', flexShrink: 0 }} />}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repoName}</span>
+                      {selected && <Check size={14} style={{ color: '#059669', flexShrink: 0 }} />}
                     </button>
                   );
                 })
               )}
+              <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '4px 0' }} />
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onChangeRepoClick();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#0a0a0a',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+              >
+                <Plus size={14} /> Connect another repository
+              </button>
             </div>
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                onChangeRepoClick();
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f8')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                width: '100%',
-                padding: '11px 12px',
-                border: 'none',
-                borderTop: '1px solid var(--border-subtle)',
-                background: '#ffffff',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#0a0a0a',
-              }}
-            >
-              <Plus size={15} /> Analyze new project
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Global Symbol Search Bar */}
-      <div style={{ flex: 1, maxWidth: '480px' }}>
+      {/* Middle: Global Symbol Search */}
+      <div style={{ flex: '1 1 220px', maxWidth: '420px', minWidth: '160px' }}>
         <SymbolSearch onSelectSymbol={onSelectSymbol} />
       </div>
 
-      {/* Connection Badge & User Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* Right section: HydraDB Status & Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
         <div
           onClick={onRefreshHydraPing}
+          title={`${statusText} — click to re-ping`}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: '#fafafa',
+            border: '1px solid #e4e4e7',
+            padding: '4px 10px',
+            borderRadius: '9999px',
             fontSize: '12px',
             fontWeight: '600',
             color: '#09090b',
-            background: '#ffffff',
-            padding: '4px 12px',
-            borderRadius: '20px',
-            border: '1px solid #e4e4e7',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: onRefreshHydraPing ? 'pointer' : 'default',
+            cursor: 'pointer',
           }}
         >
-          <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: badgeColor }} />
-          <span>{statusText}</span>
-        </div>
-
-        <button onClick={onGoToLanding} style={{ background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer' }} title="Landing Page">
-          <BookOpen size={18} />
-        </button>
-
-        <button style={{ background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer' }} title="Settings">
-          <Settings size={18} />
-        </button>
-
-        <div style={{
-          width: '28px',
-          height: '28px',
-          borderRadius: '50%',
-          background: '#e4e4e7',
-          color: '#09090b',
-          fontWeight: '700',
-          fontSize: '11px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          JD
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: badgeColor, flexShrink: 0 }} />
+          <span style={{ display: 'inline-block' }}>{statusText}</span>
         </div>
       </div>
     </header>

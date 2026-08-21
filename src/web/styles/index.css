@@ -20,7 +20,10 @@
   padding: 0;
 }
 
-body {
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: var(--bg-primary);
   color: var(--text-main);
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -29,6 +32,8 @@ body {
 
 code, pre, .mono {
   font-family: 'JetBrains Mono', monospace;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -41,6 +46,8 @@ code, pre, .mono {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .badge-verified {
@@ -66,6 +73,8 @@ code, pre, .mono {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 20px;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .btn {
@@ -79,8 +88,11 @@ code, pre, .mono {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all 0.15s ease;
+  min-height: 38px;
+  touch-action: manipulation;
 }
 
 .btn:hover {
@@ -98,6 +110,7 @@ code, pre, .mono {
   background: #26262b;
 }
 
+/* Animations */
 @keyframes trace-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -106,12 +119,6 @@ code, pre, .mono {
   animation: trace-pulse 1.1s ease-in-out infinite;
 }
 
-@keyframes trace-indeterminate {
-  0% { left: -40%; }
-  100% { left: 100%; }
-}
-
-/* Animated directional flow along architecture edges */
 @keyframes trace-dashflow {
   to {
     stroke-dashoffset: -14;
@@ -121,15 +128,11 @@ code, pre, .mono {
   stroke-dasharray: 5 5;
   animation: trace-dashflow 0.9s linear infinite;
 }
-.edge-flow-hydra {
-  stroke-dasharray: 4 5;
-  animation: trace-dashflow 1.4s linear infinite;
-}
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #f0f0f2;
@@ -140,4 +143,49 @@ code, pre, .mono {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #b8b8bf;
+}
+
+/* Mobile responsive helpers */
+.horizontal-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.break-all {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+/* Mobile Drawer Overlay */
+.mobile-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 99;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
 }

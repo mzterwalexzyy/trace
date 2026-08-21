@@ -1,5 +1,15 @@
-import React, { useRef, useState } from 'react';
-import { LayoutDashboard, Layers, ShieldAlert, Activity, FolderGit2, PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  LayoutDashboard,
+  Layers,
+  ShieldAlert,
+  Activity,
+  FolderGit2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
+  X,
+} from 'lucide-react';
 
 export type TabId = 'dashboard' | 'ask' | 'impact' | 'architecture' | 'runtime' | 'repository' | 'hydra';
 
@@ -10,6 +20,8 @@ interface SidebarProps {
   snapshotId: string;
   onChangeRepoClick: () => void;
   onGoToLanding: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 interface NavItem {
@@ -49,11 +61,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   snapshotId,
   onChangeRepoClick,
   onGoToLanding,
+  mobileOpen = false,
+  onCloseMobile,
 }) => {
   const [collapsed, setCollapsed] = useState<boolean>(false);
-  // Auto-collapse 5s after the mouse leaves; expand instantly on hover. A manual
-  // toggle still works and simply pre-empts the timer.
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const clearTimer = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -61,35 +82,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  return (
+  const handleTabSelect = (tab: TabId) => {
+    setActiveTab(tab);
+    if (isMobile && onCloseMobile) {
+      onCloseMobile();
+    }
+  };
+
+  // If on mobile and not open, don't render desktop sidebar in standard flow
+  if (isMobile && !mobileOpen) {
+    return null;
+  }
+
+  const sidebarContent = (
     <aside
       onMouseEnter={() => {
-        clearTimer();
-        setCollapsed(false);
+        if (!isMobile) {
+          clearTimer();
+          setCollapsed(false);
+        }
       }}
       onMouseLeave={() => {
-        clearTimer();
-        timerRef.current = setTimeout(() => setCollapsed(true), 5000);
+        if (!isMobile) {
+          clearTimer();
+          timerRef.current = setTimeout(() => setCollapsed(true), 5000);
+        }
       }}
       style={{
-        width: collapsed ? '64px' : '244px',
+        width: isMobile ? '280px' : collapsed ? '64px' : '244px',
         background: '#ffffff',
         borderRight: '1px solid var(--border-color)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: collapsed ? '18px 10px' : '18px 14px',
+        padding: collapsed && !isMobile ? '18px 10px' : '18px 14px',
         color: 'var(--text-main)',
         flexShrink: 0,
-        minHeight: '100vh',
+        height: isMobile ? '100vh' : 'auto',
+        minHeight: isMobile ? '100vh' : '100vh',
         transition: 'width 0.16s ease',
+        boxSizing: 'border-box',
+        zIndex: isMobile ? 100 : 1,
+        position: isMobile ? 'fixed' : 'relative',
+        top: 0,
+        left: 0,
+        boxShadow: isMobile ? '4px 0 16px rgba(0, 0, 0, 0.12)' : 'none',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-        {/* Brand + collapse toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: collapsed ? '2px' : '2px 8px' }}>
+        {/* Brand + collapse / close toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: collapsed && !isMobile ? '2px' : '2px 8px' }}>
           <div
-            onClick={onGoToLanding}
+            onClick={() => {
+              onGoToLanding();
+              if (isMobile && onCloseMobile) onCloseMobile();
+            }}
             title="TRACE — home"
             style={{
               width: '22px',
@@ -100,33 +147,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
               flexShrink: 0,
             }}
           />
-          {!collapsed && (
-            <span onClick={onGoToLanding} style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '-0.03em', color: '#0a0a0a', cursor: 'pointer' }}>
+          {(!collapsed || isMobile) && (
+            <span
+              onClick={() => {
+                onGoToLanding();
+                if (isMobile && onCloseMobile) onCloseMobile();
+              }}
+              style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '-0.03em', color: '#0a0a0a', cursor: 'pointer' }}
+            >
               TRACE
             </span>
           )}
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{
-              marginLeft: collapsed ? 0 : 'auto',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-dim)',
-              cursor: 'pointer',
-              display: 'flex',
-              padding: '2px',
-            }}
-          >
-            {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-          </button>
+
+          {isMobile ? (
+            <button
+              onClick={onCloseMobile}
+              title="Close menu"
+              style={{
+                marginLeft: 'auto',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-dim)',
+                cursor: 'pointer',
+                display: 'flex',
+                padding: '4px',
+              }}
+            >
+              <X size={20} />
+            </button>
+          ) : (
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              style={{
+                marginLeft: collapsed ? 0 : 'auto',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-dim)',
+                cursor: 'pointer',
+                display: 'flex',
+                padding: '2px',
+              }}
+            >
+              {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+          )}
         </div>
 
         {/* Grouped nav */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: collapsed ? '10px' : '18px' }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: collapsed && !isMobile ? '10px' : '18px' }}>
           {GROUPS.map((group, gi) => (
             <div key={group.heading} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {!collapsed ? (
+              {!collapsed || isMobile ? (
                 <div
                   style={{
                     fontSize: '10.5px',
@@ -147,8 +219,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    title={collapsed ? item.label : undefined}
+                    onClick={() => handleTabSelect(item.id)}
+                    title={collapsed && !isMobile ? item.label : undefined}
                     onMouseEnter={(e) => {
                       if (!active) e.currentTarget.style.background = '#f7f7f8';
                     }}
@@ -158,9 +230,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
                       gap: '11px',
-                      padding: collapsed ? '10px 0' : '9px 10px',
+                      padding: collapsed && !isMobile ? '10px 0' : '9px 10px',
                       borderRadius: '8px',
                       border: 'none',
                       background: active ? '#f2f2f3' : 'transparent',
@@ -174,7 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }}
                   >
                     <span style={{ display: 'flex', color: active ? '#0a0a0a' : 'var(--text-dim)' }}>{item.icon}</span>
-                    {!collapsed && item.label}
+                    {(!collapsed || isMobile) && item.label}
                   </button>
                 );
               })}
@@ -184,7 +256,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Bottom repository card */}
-      {collapsed ? (
+      {collapsed && !isMobile ? (
         <button
           onClick={onChangeRepoClick}
           title={`${repoName || 'repository'} — change repository`}
@@ -211,12 +283,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             display: 'flex',
             flexDirection: 'column',
             gap: '6px',
+            marginBottom: '10px',
           }}
         >
           <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
             Repository
           </div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>{repoName}</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {repoName}
+          </div>
           <div
             style={{
               fontSize: '11px',
@@ -232,7 +307,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>{snapshotId ? snapshotId.slice(0, 12) : 'no snapshot'}</span>
           </div>
           <button
-            onClick={onChangeRepoClick}
+            onClick={() => {
+              onChangeRepoClick();
+              if (isMobile && onCloseMobile) onCloseMobile();
+            }}
             style={{
               marginTop: '4px',
               alignSelf: 'flex-start',
@@ -253,4 +331,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
     </aside>
   );
+
+  if (isMobile && mobileOpen) {
+    return (
+      <>
+        <div className="mobile-sidebar-overlay" onClick={onCloseMobile} />
+        {sidebarContent}
+      </>
+    );
+  }
+
+  return sidebarContent;
 };

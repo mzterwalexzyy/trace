@@ -89,10 +89,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
         maxWidth: '620px',
-        width: '100%',
-        padding: '32px',
+        width: '94%',
+        padding: '24px 20px',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
         position: 'relative',
+        boxSizing: 'border-box',
       }}>
         {/* Dismiss Button */}
         <button

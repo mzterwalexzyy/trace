@@ -26,6 +26,7 @@ import {
   Info,
 } from 'lucide-react';
 import { GraphNode } from '../../core/hydradb/types.js';
+import { usePaged, Pager } from './Pager.js';
 
 interface TraceItem {
   traceNode: GraphNode;
@@ -121,6 +122,7 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
   const avgSpans = totalTraces > 0 ? Math.round(totalSpans / totalTraces) : 0;
 
   const activeTrace = traces[selectedTraceIndex] || null;
+  const tracesPage = usePaged(traces, 5);
 
   // Real spans only — never fabricated. Empty when no trace is selected, so the
   // waterfall shows an honest empty state instead of a fake demo call tree.
@@ -217,14 +219,14 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
       </div>
 
       {/* 5 Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
         {/* Card 1: Traces recorded */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <Activity size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {totalTraces}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Traces recorded</div>
@@ -233,12 +235,12 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
         </div>
 
         {/* Card 2: Total duration */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <Clock size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {totalDurationMs} ms
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Total duration</div>
@@ -247,12 +249,12 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
         </div>
 
         {/* Card 3: Successful */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
             <CheckCircle2 size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#10b981', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#10b981', lineHeight: '1.1' }}>
               {totalSuccessful}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Successful</div>
@@ -261,12 +263,12 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
         </div>
 
         {/* Card 4: Errors */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <AlertTriangle size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {totalErrors}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Errors</div>
@@ -275,12 +277,12 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
         </div>
 
         {/* Card 5: Avg. spans per trace */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <GitBranch size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {avgSpans}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Avg. spans per trace</div>
@@ -290,11 +292,11 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
       </div>
 
       {/* Main 2-Column Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '20px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', alignItems: 'start' }}>
         {/* LEFT COLUMN: Traces Navigation List */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           {/* Sub-tabs */}
-          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             <span
               onClick={() => setActiveLeftTab('traces')}
               style={{ cursor: 'pointer', color: activeLeftTab === 'traces' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'traces' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
@@ -390,7 +392,9 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto' }}>
-              {traces.map((trace, idx) => (
+              {tracesPage.pageItems.map((trace, i) => {
+                const idx = tracesPage.page * 5 + i;
+                return (
                 <div
                   key={idx}
                   onClick={() => setSelectedTraceIndex(idx)}
@@ -418,7 +422,9 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
                     <span>{trace.traceNode.metadata?.imported ? 'Imported' : relTime(trace.traceNode.metadata?.startTime as string)}</span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
+              <Pager page={tracesPage.page} totalPages={tracesPage.totalPages} setPage={tracesPage.setPage} total={tracesPage.total} label="traces" />
             </div>
           )}
         </div>

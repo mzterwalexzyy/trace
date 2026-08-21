@@ -307,14 +307,14 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
       </div>
 
       {/* Row 3: 6 Summary Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
         {/* Card 1: Affected Nodes */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <Boxes size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {totalAffected.toLocaleString()}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Affected nodes</div>
@@ -322,12 +322,12 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
         </div>
 
         {/* Card 2: API Endpoints */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <Network size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {report.endpoints.length}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>API endpoints</div>
@@ -335,12 +335,12 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
         </div>
 
         {/* Card 3: DB Dependencies */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <Database size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {dbDepsCount}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>DB dependencies</div>
@@ -348,12 +348,12 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
         </div>
 
         {/* Card 4: Verified Routes */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
             <CheckCircle2 size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#10b981', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#10b981', lineHeight: '1.1' }}>
               {verifiedRoutes}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Verified routes</div>
@@ -361,12 +361,12 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
         </div>
 
         {/* Card 5: Unobserved Routes */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
             <AlertTriangle size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#09090b', lineHeight: '1.1' }}>
               {unobservedRoutes}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Unobserved routes</div>
@@ -374,12 +374,12 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
         </div>
 
         {/* Card 6: Change Risk */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: riskColor }}>
             <ShieldAlert size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: riskColor, lineHeight: '1.1' }}>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: riskColor, lineHeight: '1.1' }}>
               {risk}
             </div>
             <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>Change risk</div>
@@ -388,9 +388,9 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
       </div>
 
       {/* Row 4: Two Main Cards (What could be affected & Runtime evidence) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', alignItems: 'start' }}>
         {/* LEFT CARD: What could be affected */}
-        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#09090b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FileText size={18} style={{ color: '#09090b' }} />
@@ -402,7 +402,7 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
           </div>
 
           {/* Sub-tabs */}
-          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e4e4e7', paddingBottom: '8px', fontSize: '13px', fontWeight: '600', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             <span
               onClick={() => { setActiveLeftTab('nodes'); setCurrentPage(1); }}
               style={{ cursor: 'pointer', color: activeLeftTab === 'nodes' ? '#09090b' : '#a1a1aa', borderBottom: activeLeftTab === 'nodes' ? '2px solid #09090b' : 'none', paddingBottom: '8px' }}
