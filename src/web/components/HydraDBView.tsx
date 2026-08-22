@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Database, Search, Loader2, Cloud, HardDrive, FileCode, Boxes } from 'lucide-react';
+import { usePaged, Pager } from './Pager.js';
 
 interface Overview {
   storageMode: { mode: string; status: string; isConnected: boolean; database: string; sdkPackage: string; lastVerifiedAt?: string };
@@ -24,6 +25,7 @@ export const HydraDBView: React.FC = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<QueryResult[] | null>(null);
   const [querying, setQuerying] = useState(false);
+  const resultsPage = usePaged(results || [], 5);
 
   useEffect(() => {
     fetch('/api/hydra/overview').then((r) => r.json()).then(setOverview).catch(() => {});
@@ -119,17 +121,20 @@ export const HydraDBView: React.FC = () => {
             {results.length === 0 ? (
               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No context found for that query.</div>
             ) : (
-              results.map((r, i) => (
-                <div key={i} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: '#71717a', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <FileCode size={12} /> {r.metadata?.filePath || r.metadata?.source_id || 'HydraDB'}
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Relevance {r.score.toFixed(2)}</span>
+              <>
+                {resultsPage.pageItems.map((r, i) => (
+                  <div key={i} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                      <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono, monospace', color: '#71717a', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <FileCode size={12} /> {r.metadata?.filePath || r.metadata?.source_id || 'HydraDB'}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>Relevance {r.score.toFixed(2)}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{r.content}</p>
                   </div>
-                  <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{r.content}</p>
-                </div>
-              ))
+                ))}
+                <Pager page={resultsPage.page} totalPages={resultsPage.totalPages} setPage={resultsPage.setPage} total={resultsPage.total} label="results" />
+              </>
             )}
           </div>
         )}

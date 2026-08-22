@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Activity,
   Clock,
@@ -38,6 +38,7 @@ interface RuntimeTracesProps {
   activeRepoName?: string;
   onRefreshTraces?: () => void;
   onSelectNode?: (node: GraphNode) => void;
+  onOpenImpact?: (symbolName: string) => void;
 }
 
 function relTime(iso?: string): string {
@@ -56,6 +57,7 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
   activeRepoName,
   onRefreshTraces,
   onSelectNode,
+  onOpenImpact,
 }) => {
   const [selectedTraceIndex, setSelectedTraceIndex] = useState<number>(0);
   const [activeLeftTab, setActiveLeftTab] = useState<'traces' | 'executions' | 'environments'>('traces');
@@ -63,6 +65,42 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [runningScenario, setRunningScenario] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // Symbol lookup for the empty-state search: fetch the active repo's functions
+  // and endpoints so a user can jump straight to a symbol's runtime status
+  // (VERIFIED / UNOBSERVED) on the Change Impact page.
+  const [lookup, setLookup] = useState('');
+  const [symbols, setSymbols] = useState<{ name: string; type: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/graph')
+      .then((r) => r.json())
+      .then((g) => {
+        if (cancelled) return;
+        const syms = (g.nodes || [])
+          .filter((n: any) => ['Function', 'Method', 'APIEndpoint'].includes(n.type))
+          .map((n: any) => ({ name: n.name, type: n.type }));
+        // de-dupe by name, keep first
+        const seen = new Set<string>();
+        setSymbols(syms.filter((s: any) => (seen.has(s.name) ? false : (seen.add(s.name), true))));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeRepoName, traces.length]);
+
+  const lookupMatches = (() => {
+    const q = lookup.trim().toLowerCase();
+    if (!q) return [] as { name: string; type: string }[];
+    const starts = symbols.filter((s) => s.name.toLowerCase().startsWith(q));
+    const contains = symbols.filter((s) => !s.name.toLowerCase().startsWith(q) && s.name.toLowerCase().includes(q));
+    return [...starts, ...contains].slice(0, 6);
+  })();
+
+  const submitLookup = (name?: string) => {
+    const target = (name ?? lookup).trim();
+    if (!target || !onOpenImpact) return;
+    onOpenImpact(target);
+  };
 
   // Upload = import execution evidence recorded elsewhere / earlier (a TRACE
   // trace JSON), and connect it to the current architecture graph.
@@ -209,15 +247,59 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
         </div>
       </div>
 
-      {/* What Runtime is — static vs runtime, in one line */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12.5px', color: '#71717a', background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '12px', padding: '12px 16px' }}>
-        <Info size={15} style={{ color: '#71717a', flexShrink: 0 }} />
-        <span>
-          Architecture shows what your code <strong>could</strong> do. Runtime shows what it <strong>actually did</strong>.
-          {' '}<strong style={{ color: '#09090b' }}>Record a trace</strong> to watch a live execution, or <strong style={{ color: '#09090b' }}>Upload a trace</strong> to import evidence recorded earlier — then Change Impact marks each path VERIFIED or UNOBSERVED.
-        </span>
-      </div>
+      {traces.length === 0 ? (
+        /* Empty state: no runtime evidence for this repo yet. Mirrors the
+           Change Impact "no analysis" state — one centered call to action with a
+           short explanation and a lookup to check a symbol's runtime status. */
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '52px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '18px' }}>
+          <div style={{ width: '58px', height: '58px', borderRadius: '15px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Activity size={27} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#09090b', margin: 0, letterSpacing: '-0.01em' }}>
+              No runtime traces for {activeRepoName || 'this repository'} yet
+            </h2>
+            <p style={{ fontSize: '13.5px', color: '#71717a', maxWidth: '560px', margin: '10px auto 0', lineHeight: 1.6 }}>
+              Architecture shows what your code <strong>could</strong> do. Runtime shows what it <strong style={{ color: '#09090b' }}>actually did</strong> — the real functions and routes that executed. Record a trace to capture a live execution, then Change Impact marks each path VERIFIED or UNOBSERVED.
+            </p>
+          </div>
 
+          {/* Lookup: jump to a symbol's runtime status on Change Impact */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: '460px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#a1a1aa' }} />
+            <input
+              value={lookup}
+              onChange={(e) => setLookup(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submitLookup(); }}
+              placeholder="Look up a function or route to trace…"
+              style={{ width: '100%', padding: '12px 14px 12px 40px', background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '10px', fontSize: '14px', color: '#09090b', boxSizing: 'border-box' }}
+            />
+            {lookupMatches.length > 0 && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', zIndex: 20, overflow: 'hidden', textAlign: 'left' }}>
+                {lookupMatches.map((s) => (
+                  <button key={s.name} onClick={() => submitLookup(s.name)} style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #f4f4f5', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', color: '#09090b' }}>{s.name}</span>
+                    <span style={{ fontSize: '11px', color: '#a1a1aa', marginLeft: 'auto' }}>{s.type === 'APIEndpoint' ? 'route' : 'function'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <span style={{ fontSize: '11.5px', color: '#a1a1aa', marginTop: '-8px' }}>Search a function or route to check whether it is exercised at runtime.</span>
+
+          {/* Primary actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '4px' }}>
+            <button onClick={() => runScenario('checkout')} disabled={runningScenario !== null} style={{ background: '#000000', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+              Run demo trace
+            </button>
+            <button onClick={() => fileRef.current?.click()} style={{ background: '#ffffff', color: '#09090b', border: '1px solid #e4e4e7', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Upload size={15} /> Upload trace
+            </button>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* 5 Summary KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
         {/* Card 1: Traces recorded */}
@@ -570,6 +652,8 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

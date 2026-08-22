@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ChangeImpactReport } from '../../core/impact/intersection.js';
 import { GraphNode } from '../../core/hydradb/types.js';
+import { usePaged, Pager } from './Pager.js';
 
 interface ChangeImpactHeroProps {
   report: ChangeImpactReport | null;
@@ -42,7 +43,15 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
   const [activeLeftTab, setActiveLeftTab] = useState<'nodes' | 'files' | 'functions' | 'modules' | 'db'>('nodes');
   const [activeRightTab, setActiveRightTab] = useState<'verified' | 'unobserved'>('verified');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 8;
+  const pageSize = 5;
+
+  // Right-column pagination hook. Computed from the raw report here (before the
+  // loading / no-report early returns) so the hook is always called in the same
+  // order — React requires hooks to run unconditionally.
+  const rightListForPage = (report?.endpoints || []).filter(
+    (e) => e.status === (activeRightTab === 'verified' ? 'VERIFIED' : 'UNOBSERVED')
+  );
+  const rightPage = usePaged(rightListForPage, 5);
 
   // Sync search input with target symbol
   useEffect(() => {
@@ -569,7 +578,7 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {currentRightList.map((ep, idx) => (
+                {rightPage.pageItems.map((ep, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -595,6 +604,7 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
                     </span>
                   </div>
                 ))}
+                <Pager page={rightPage.page} totalPages={rightPage.totalPages} setPage={rightPage.setPage} total={rightPage.total} label={activeRightTab === 'verified' ? 'verified' : 'unobserved'} />
               </div>
             )}
           </div>

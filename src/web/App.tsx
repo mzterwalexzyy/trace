@@ -40,14 +40,17 @@ export function App() {
   const initialPath = typeof window !== 'undefined' ? window.location.pathname : '/';
   const initialTab = PATH_TO_TAB[initialPath];
   const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'dashboard');
-  const [showLanding, setShowLanding] = useState<boolean>(false);
+  // The root path shows the landing page; a known tab path (e.g. /dashboard,
+  // /runtime) opens that view directly and survives a refresh. Unknown paths
+  // (other than /about) fall back to the landing page too.
+  const [showLanding, setShowLanding] = useState<boolean>(!initialTab && initialPath !== '/about');
   const [showAbout, setShowAbout] = useState<boolean>(initialPath === '/about');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
-  const [snapshotId, setSnapshotId] = useState<string>('a1b2c3d');
-  const [repoName, setRepoName] = useState<string>('veyra');
+  const [snapshotId, setSnapshotId] = useState<string>('');
+  const [repoName, setRepoName] = useState<string>('');
   const [repoPath, setRepoPath] = useState<string>('');
   const [storageModeInfo, setStorageModeInfo] = useState<StorageModeInfo | undefined>(undefined);
   const [traces, setTraces] = useState<any[]>([]);
@@ -248,7 +251,7 @@ export function App() {
             />
           )}
           {activeTab === 'architecture' && <ArchitectureGraph nodes={nodes} edges={edges} onSelectNode={handleSelectSymbolNode} />}
-          {activeTab === 'runtime' && <RuntimeTraces traces={traces} onRefreshTraces={loadTraces} onSelectNode={handleSelectSymbolNode} />}
+          {activeTab === 'runtime' && <RuntimeTraces traces={traces} activeRepoName={repoName} onRefreshTraces={loadTraces} onSelectNode={handleSelectSymbolNode} onOpenImpact={handleSearchSymbolName} />}
           {activeTab === 'repository' && (
             <RepositoryView
               activeRepoName={repoName}

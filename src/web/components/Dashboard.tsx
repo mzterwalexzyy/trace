@@ -297,7 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onConnectRepo,
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#0a0a0a' }}>Recent evaluation runs</span>
-                <span style={uc}>{filteredRuns.length} shown</span>
+                <span style={uc}>{filteredRuns.length} total</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>

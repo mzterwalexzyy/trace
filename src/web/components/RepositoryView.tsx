@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FolderGit2, GitBranch, Boxes, Network, Database, ShieldAlert, ArrowRight, RefreshCw, Cloud, HardDrive } from 'lucide-react';
 import type { TabId } from './Sidebar.js';
+import { usePaged, Pager } from './Pager.js';
 
 interface RepoCard {
   repoName: string;
@@ -43,6 +44,7 @@ const statLbl: React.CSSProperties = { fontSize: '10.5px', color: 'var(--text-mu
 export const RepositoryView: React.FC<RepositoryViewProps> = ({ activeRepoName, onConnectRepo, onSwitchRepo, onNavigate }) => {
   const [repos, setRepos] = useState<RepoCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const reposPage = usePaged(repos, 5);
 
   const load = () => {
     setLoading(true);
@@ -87,7 +89,7 @@ export const RepositoryView: React.FC<RepositoryViewProps> = ({ activeRepoName, 
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
-          {repos.map((repo) => {
+          {reposPage.pageItems.map((repo) => {
             const isActive = repo.repoName === activeRepoName;
             return (
               <div
@@ -139,6 +141,9 @@ export const RepositoryView: React.FC<RepositoryViewProps> = ({ activeRepoName, 
               </div>
             );
           })}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Pager page={reposPage.page} totalPages={reposPage.totalPages} setPage={reposPage.setPage} total={reposPage.total} label="repositories" />
+          </div>
         </div>
       )}
     </div>
