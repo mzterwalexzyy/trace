@@ -173,6 +173,11 @@ tarball from the GitHub API, extracts it, and runs the same AST analysis. No git
 binary is required, so this works on serverless hosts too. Private repositories
 need a connected account and are not analyzed from a bare URL.
 
+The GitHub API allows 60 unauthenticated requests per hour per IP. If you expect
+to analyze several repos in a short window, set a `GITHUB_TOKEN` (a fine-grained
+token with public read access is enough) to raise that to 5000/hour. It is used
+read-only and is optional.
+
 ## Cloud deployment (Vercel + Supabase)
 
 The live demo runs on Vercel with the API as a serverless function
@@ -199,6 +204,7 @@ Deployment environment variables (all optional):
 | --- | --- |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Enable Supabase persistence and serverless graph rehydration. |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Enable the Ask TRACE AI explanation layer. Without a key, Ask uses Evidence Mode. |
+| `GITHUB_TOKEN` | Raise the public-repo tarball rate limit from 60 to 5000 requests/hour. Read-only; optional. |
 
 ## The demo, in under two minutes
 

@@ -93,9 +93,15 @@ async function cloneRepo(url: string): Promise<string> {
   if (gh) {
     const [, owner, repo] = gh;
     fs.mkdirSync(dest, { recursive: true });
+    // A GitHub token (GITHUB_TOKEN / GH_TOKEN) raises the API rate limit from 60
+    // to 5000 requests/hour and is used read-only for the public tarball. It is
+    // optional — without one, unauthenticated requests still work.
+    const ghToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+    const ghHeaders: Record<string, string> = { 'User-Agent': 'trace-app', Accept: 'application/vnd.github+json' };
+    if (ghToken) ghHeaders.Authorization = `Bearer ${ghToken}`;
     // GitHub's tarball endpoint redirects to the default branch archive.
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/tarball`, {
-      headers: { 'User-Agent': 'trace-app', Accept: 'application/vnd.github+json' },
+      headers: ghHeaders,
       redirect: 'follow',
     });
     if (res.ok && res.body) {
@@ -108,7 +114,13 @@ async function cloneRepo(url: string): Promise<string> {
       return dest;
     }
     if (res.status === 404) throw new Error('Repository not found (is it public?).');
-    if (res.status === 403) throw new Error('GitHub rate limit reached — try again shortly.');
+    if (res.status === 403 || res.status === 429) {
+      throw new Error(
+        ghToken
+          ? 'GitHub rate limit reached — try again shortly.'
+          : 'GitHub rate limit reached. Set a GITHUB_TOKEN to raise the limit, or try again shortly.'
+      );
+    }
     // Non-OK but not a clear error → try git as a fallback.
   }
 
