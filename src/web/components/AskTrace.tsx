@@ -47,18 +47,21 @@ interface AskResponse {
   followUps: string[];
 }
 
-const EXAMPLE_PROMPTS = [
-  'How does checkout depend on tax calculation?',
-  'What code is related to invoice generation?',
-  'Find context about database writes?',
-  'What changed around calculateTax?',
+// Generic fallbacks, shown only until repo-specific suggestions are built from
+// the active repo's real symbols (see the effect below).
+const FALLBACK_PROMPTS = [
+  'Which routes are unobserved at runtime?',
+  'Which functions are verified at runtime?',
+  'What has the most dependents in this repo?',
 ];
 
 export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact, onNavigate }) => {
-  const [question, setQuestion] = useState('What could break if I change calculateTax?');
+  const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [prompts, setPrompts] = useState<string[]>(FALLBACK_PROMPTS);
+  const [placeholder, setPlaceholder] = useState<string>('Ask about a function, route, or change…');
 
   const ask = async (q: string) => {
     const query = q.trim();
@@ -82,10 +85,50 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
     }
   };
 
-  // Run initial query on mount so page matches reference layout out-of-the-box
+  // Build suggestions from the ACTIVE repo's real symbols (not a fixed demo
+  // list) and open with a question about a real symbol. Re-runs when the repo
+  // changes (e.g. after a switch), so Ask always reflects the current session.
   useEffect(() => {
-    ask('What could break if I change calculateTax?');
-  }, []);
+    let cancelled = false;
+    fetch('/api/graph')
+      .then((r) => r.json())
+      .then((g) => {
+        if (cancelled) return;
+        const nodes = (g.nodes || []) as any[];
+        const isTest = (fp?: string) => !!fp && /(^|[\\/])(tests?|__tests__)[\\/]|\.(test|spec)\./i.test(fp);
+        const pick = (types: string[]) =>
+          nodes.filter((n) => types.includes(n.type) && !isTest(n.filePath)).map((n) => n.name);
+        const fns = pick(['Function', 'Method']);
+        const eps = pick(['APIEndpoint']);
+        const schemas = pick(['DBSchema']);
+
+        const p: string[] = [];
+        if (fns[0]) p.push(`What could break if I change ${fns[0]}?`);
+        if (eps[0]) p.push(`How does ${eps[0]} depend on the rest of the code?`);
+        p.push('Which routes are unobserved at runtime?');
+        if (schemas[0]) p.push(`What reads or writes ${schemas[0]}?`);
+        else if (fns[1]) p.push(`What changed around ${fns[1]}?`);
+        setPrompts(p.length ? p.slice(0, 4) : FALLBACK_PROMPTS);
+
+        if (fns[0]) setPlaceholder(`e.g. What could break if I change ${fns[0]}?`);
+        else if (eps[0]) setPlaceholder(`e.g. How does ${eps[0]} depend on other code?`);
+
+        const firstQ = fns[0]
+          ? `What could break if I change ${fns[0]}?`
+          : eps[0]
+          ? `How does ${eps[0]} depend on the rest of the code?`
+          : '';
+        if (firstQ) {
+          setQuestion(firstQ);
+          ask(firstQ);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRepoName]);
 
   const ev = result?.evidence || {};
   const primary = result?.resolvedTargets?.[0];
@@ -134,7 +177,7 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && ask(question)}
-            placeholder="What could break if I change calculateTax?"
+            placeholder={placeholder}
             style={{
               width: '100%',
               border: 'none',
@@ -179,8 +222,8 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
 
         {/* Example Prompt Chips */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px' }}>
-          <span style={{ color: '#71717a' }}>Try one of these examples:</span>
-          {EXAMPLE_PROMPTS.map((promptText, idx) => (
+          <span style={{ color: '#71717a' }}>Try one of these{activeRepoName ? ` for ${activeRepoName}` : ''}:</span>
+          {prompts.map((promptText, idx) => (
             <button
               key={idx}
               onClick={() => ask(promptText)}
