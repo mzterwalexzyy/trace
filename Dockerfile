@@ -13,7 +13,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# Cap V8 heap so the Vite/tsc build stays under small hosts' memory limit
+# (e.g. Render's free 512MB) instead of being OOM-killed, which would leave the
+# previous image serving. Scoped to the build only, not the runtime server.
+RUN NODE_OPTIONS=--max-old-space-size=460 npm run build
 
 ENV PORT=3000
 ENV TRACE_HOST=0.0.0.0
