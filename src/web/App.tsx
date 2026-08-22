@@ -115,7 +115,9 @@ export function App() {
   useEffect(() => {
     loadGraphAndRepo();
     loadTraces();
-    loadDiffImpact();
+    // Do NOT auto-pick a Change Impact symbol on load — that surfaced an
+    // arbitrary function (e.g. createOrderInDatabase). Change Impact starts on
+    // its search prompt; a symbol is chosen explicitly (search / graph / Ask).
   }, []);
 
   // Keep the URL in sync with the active view so refresh/back/forward and
@@ -144,7 +146,10 @@ export function App() {
   const handleEnterDashboard = (targetPath?: string, useDemo: boolean = true) => {
     setShowLanding(false);
     setShowOnboarding(false);
-    setActiveTab('impact');
+    // Land on Architecture after analysis — an overview of the repo just parsed,
+    // rather than Change Impact for an arbitrary auto-selected symbol.
+    setActiveTab('architecture');
+    setImpactReport(null);
 
     fetch('/api/repository/analyze', {
       method: 'POST',
@@ -155,7 +160,6 @@ export function App() {
       .then(() => {
         loadGraphAndRepo();
         loadTraces();
-        loadDiffImpact();
       })
       .catch((err) => {
         console.error('Failed to analyze repository:', err);
@@ -278,8 +282,8 @@ export function App() {
             setShowOnboarding(false);
             loadGraphAndRepo();
             loadTraces();
-            loadDiffImpact();
-            setActiveTab('impact');
+            setImpactReport(null);
+            setActiveTab('architecture');
           }}
           onCancel={() => setShowOnboarding(false)}
           isClosable={nodes.length > 0}

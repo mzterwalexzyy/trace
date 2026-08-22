@@ -60,14 +60,24 @@ export const ChangeImpactHero: React.FC<ChangeImpactHeroProps> = ({
     }
   }, [report?.targetSymbol?.id]);
 
-  // Fetch suggested chips from graph
+  // Fetch suggested chips from graph. De-prioritise bundled fixtures (the
+  // demo-app/ folder) and test files so a real repo surfaces its own symbols,
+  // not the demo. Falls back to all symbols if that leaves nothing (e.g. when
+  // the analyzed repo *is* the demo app).
   useEffect(() => {
     fetch('/api/symbols')
       .then((r) => r.json())
       .then((d) => {
-        const nodes = (d.symbols || []).map((s: any) => s.node);
-        const eps = nodes.filter((n: any) => n.type === 'APIEndpoint').map((n: any) => n.name);
-        const fns = nodes.filter((n: any) => n.type === 'Function' || n.type === 'Method').map((n: any) => n.name);
+        const allNodes = (d.symbols || []).map((s: any) => s.node);
+        const isFixture = (fp?: string) =>
+          !!fp && (/(^|[\\/])demo-app[\\/]/i.test(fp) || /(^|[\\/])(tests?|__tests__)[\\/]|\.(test|spec)\./i.test(fp));
+        const cleanName = (name: string) =>
+          typeof name === 'string' && name.length >= 2 && name.length <= 40 && /^[A-Za-z_$][\w$]*$/.test(name);
+        const cleanEndpoint = (name: string) => /^(GET|POST|PUT|PATCH|DELETE)\s+\/\S+/.test(name || '');
+        const real = allNodes.filter((n: any) => !isFixture(n.filePath));
+        const nodes = real.length ? real : allNodes;
+        const eps = nodes.filter((n: any) => n.type === 'APIEndpoint').map((n: any) => n.name).filter(cleanEndpoint);
+        const fns = nodes.filter((n: any) => n.type === 'Function' || n.type === 'Method').map((n: any) => n.name).filter(cleanName);
         setExamples([...eps.slice(0, 2), ...fns.slice(0, 3)].slice(0, 4));
       })
       .catch(() => setExamples([]));

@@ -102,6 +102,13 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
     onOpenImpact(target);
   };
 
+  // Live trace recording only works against the bundled demo app (TRACE ships it
+  // instrumented). For any other repo, TRACE cannot execute the code to trace it
+  // — the honest paths are uploading a trace from an instrumented app, or looking
+  // up a symbol's runtime status. So the "Run demo trace" action is shown only on
+  // the demo repo; other repos get Upload as the primary action.
+  const isDemoRepo = (activeRepoName || '').toLowerCase() === 'demo-app';
+
   // Upload = import execution evidence recorded elsewhere / earlier (a TRACE
   // trace JSON), and connect it to the current architecture graph.
   const importTrace = async (file: File) => {
@@ -223,27 +230,29 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
             onChange={(e) => { const f = e.target.files?.[0]; if (f) importTrace(f); e.currentTarget.value = ''; }}
           />
 
-          <button
-            onClick={() => runScenario('checkout')}
-            disabled={runningScenario !== null}
-            title="Watch a new execution: TRACE runs the app/demo and records the real call tree."
-            style={{
-              background: '#000000',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '9px 16px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-            Run demo trace
-          </button>
+          {isDemoRepo && (
+            <button
+              onClick={() => runScenario('checkout')}
+              disabled={runningScenario !== null}
+              title="Watch a new execution: TRACE runs the bundled demo app and records the real call tree."
+              style={{
+                background: '#000000',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '9px 16px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+              Run demo trace
+            </button>
+          )}
         </div>
       </div>
 
@@ -259,8 +268,11 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#09090b', margin: 0, letterSpacing: '-0.01em' }}>
               No runtime traces for {activeRepoName || 'this repository'} yet
             </h2>
-            <p style={{ fontSize: '13.5px', color: '#71717a', maxWidth: '560px', margin: '10px auto 0', lineHeight: 1.6 }}>
-              Architecture shows what your code <strong>could</strong> do. Runtime shows what it <strong style={{ color: '#09090b' }}>actually did</strong> — the real functions and routes that executed. Record a trace to capture a live execution, then Change Impact marks each path VERIFIED or UNOBSERVED.
+            <p style={{ fontSize: '13.5px', color: '#71717a', maxWidth: '580px', margin: '10px auto 0', lineHeight: 1.6 }}>
+              Architecture shows what your code <strong>could</strong> do. Runtime shows what it <strong style={{ color: '#09090b' }}>actually did</strong> — the real functions and routes that executed, so Change Impact can mark each path VERIFIED or UNOBSERVED.
+              {isDemoRepo
+                ? ' Run the demo trace to capture a live execution now.'
+                : ` TRACE can't execute ${activeRepoName || 'this repo'} to trace it — instrument your app with the TRACE tracing SDK and upload the trace here, or look up a symbol below to see its runtime status.`}
             </p>
           </div>
 
@@ -271,7 +283,7 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
               value={lookup}
               onChange={(e) => setLookup(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') submitLookup(); }}
-              placeholder="Look up a function or route to trace…"
+              placeholder="Look up a function or route…"
               style={{ width: '100%', padding: '12px 14px 12px 40px', background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '10px', fontSize: '14px', color: '#09090b', boxSizing: 'border-box' }}
             />
             {lookupMatches.length > 0 && (
@@ -287,13 +299,15 @@ export const RuntimeTraces: React.FC<RuntimeTracesProps> = ({
           </div>
           <span style={{ fontSize: '11.5px', color: '#a1a1aa', marginTop: '-8px' }}>Search a function or route to check whether it is exercised at runtime.</span>
 
-          {/* Primary actions */}
+          {/* Primary actions — live recording is only possible for the demo app. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '4px' }}>
-            <button onClick={() => runScenario('checkout')} disabled={runningScenario !== null} style={{ background: '#000000', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-              Run demo trace
-            </button>
-            <button onClick={() => fileRef.current?.click()} style={{ background: '#ffffff', color: '#09090b', border: '1px solid #e4e4e7', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isDemoRepo && (
+              <button onClick={() => runScenario('checkout')} disabled={runningScenario !== null} style={{ background: '#000000', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {runningScenario ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                Run demo trace
+              </button>
+            )}
+            <button onClick={() => fileRef.current?.click()} style={{ background: isDemoRepo ? '#ffffff' : '#000000', color: isDemoRepo ? '#09090b' : '#ffffff', border: isDemoRepo ? '1px solid #e4e4e7' : 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Upload size={15} /> Upload trace
             </button>
           </div>

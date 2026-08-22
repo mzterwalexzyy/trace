@@ -356,7 +356,7 @@ export class RepositoryAnalyzer {
   private static readonly MAX_FILES = 5000;
   private static readonly MAX_DEPTH = 25;
   private static readonly IGNORED_DIRS = new Set([
-    'node_modules', '.git', 'dist', 'build', '.trace', 'coverage', '.next', 'out', '.cache',
+    'node_modules', '.git', 'dist', 'dist-web', 'build', '.trace', 'coverage', '.next', 'out', '.cache',
     'vendor', '.turbo', 'tmp', 'temp',
     // Framework build output (minified bundles, not source):
     '.output', '_nuxt', '.nuxt', '.svelte-kit', '.vercel', '.netlify', '.astro',

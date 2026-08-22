@@ -95,12 +95,22 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
       .then((g) => {
         if (cancelled) return;
         const nodes = (g.nodes || []) as any[];
-        const isTest = (fp?: string) => !!fp && /(^|[\\/])(tests?|__tests__)[\\/]|\.(test|spec)\./i.test(fp);
-        const pick = (types: string[]) =>
-          nodes.filter((n) => types.includes(n.type) && !isTest(n.filePath)).map((n) => n.name);
-        const fns = pick(['Function', 'Method']);
-        const eps = pick(['APIEndpoint']);
-        const schemas = pick(['DBSchema']);
+        // Skip test files and the bundled demo-app fixture so suggestions reflect
+        // the real repo, not the demo that ships inside this project.
+        const isFixture = (fp?: string) =>
+          !!fp && (/(^|[\\/])demo-app[\\/]/i.test(fp) || /(^|[\\/])(tests?|__tests__)[\\/]|\.(test|spec)\./i.test(fp));
+        // Only suggest real, readable identifiers — skip minified bundle symbols
+        // ("n") and garbage parsed names (spaces, parens) so prompts read well.
+        const cleanName = (name: string) =>
+          typeof name === 'string' && name.length >= 2 && name.length <= 40 && /^[A-Za-z_$][\w$]*$/.test(name);
+        const cleanEndpoint = (name: string) => /^(GET|POST|PUT|PATCH|DELETE)\s+\/\S+/.test(name || '');
+        const pickFrom = (pool: any[], types: string[]) =>
+          pool.filter((n) => types.includes(n.type)).map((n) => n.name);
+        const real = nodes.filter((n) => !isFixture(n.filePath));
+        const pool = real.length ? real : nodes;
+        const fns = pickFrom(pool, ['Function', 'Method']).filter(cleanName);
+        const eps = pickFrom(pool, ['APIEndpoint']).filter(cleanEndpoint);
+        const schemas = pickFrom(pool, ['DBSchema']).filter(cleanName);
 
         const p: string[] = [];
         if (fns[0]) p.push(`What could break if I change ${fns[0]}?`);
@@ -112,16 +122,8 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
 
         if (fns[0]) setPlaceholder(`e.g. What could break if I change ${fns[0]}?`);
         else if (eps[0]) setPlaceholder(`e.g. How does ${eps[0]} depend on other code?`);
-
-        const firstQ = fns[0]
-          ? `What could break if I change ${fns[0]}?`
-          : eps[0]
-          ? `How does ${eps[0]} depend on the rest of the code?`
-          : '';
-        if (firstQ) {
-          setQuestion(firstQ);
-          ask(firstQ);
-        }
+        // Intentionally do NOT auto-run a query. The page stays on the search box
+        // + suggestions until the user asks something (like the Runtime page).
       })
       .catch(() => {});
     return () => {
@@ -244,6 +246,19 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
         </div>
       </div>
 
+      {/* Empty state — nothing runs until the user asks (like the Runtime page). */}
+      {!result && !loading && !error && (
+        <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '48px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b' }}>
+            <Search size={24} />
+          </div>
+          <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#09090b', margin: 0 }}>Ask a question about {activeRepoName || 'your repository'}</h3>
+          <p style={{ fontSize: '13px', color: '#71717a', maxWidth: '520px', margin: 0, lineHeight: 1.6 }}>
+            Type a question or pick a suggestion above. TRACE answers from the real dependency graph, runtime traces and HydraDB context — grounded in evidence, never invented.
+          </p>
+        </div>
+      )}
+
       {/* Loading & Error States */}
       {loading && (
         <div style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '16px', padding: '40px', textAlign: 'center', color: '#71717a' }}>
@@ -271,7 +286,17 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
                     <Zap size={12} /> {isAI ? 'AI mode' : 'Evidence mode'}
                   </span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#a1a1aa' }}>{result.intent.replace(/_/g, ' ')}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '11px', color: '#a1a1aa' }}>{result.intent.replace(/_/g, ' ')}</span>
+                  {targetName && (
+                    <button
+                      onClick={() => onOpenImpact(targetName)}
+                      style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '7px', padding: '5px 10px', fontSize: '12px', fontWeight: 600, color: '#09090b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      View full impact <ArrowRight size={13} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Answer text — the real grounded answer from /api/ask */}
@@ -346,85 +371,6 @@ export const AskTrace: React.FC<AskTraceProps> = ({ activeRepoName, onOpenImpact
                 </div>
               )}
 
-              {/* What Could Be Affected Category Accordion List */}
-              <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>What could be affected</div>
-
-                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Code2 size={16} style={{ color: '#09090b' }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Functions</div>
-                      <div style={{ fontSize: '11px', color: '#71717a' }}>Directly or indirectly affected</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
-                    <span>{affectedCount}</span>
-                    <ChevronRight size={16} />
-                  </div>
-                </div>
-
-                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Globe size={16} style={{ color: '#09090b' }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>API endpoints</div>
-                      <div style={{ fontSize: '11px', color: '#71717a' }}>HTTP routes that may be impacted</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
-                    <span>{apiCount}</span>
-                    <ChevronRight size={16} />
-                  </div>
-                </div>
-
-                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Database size={16} style={{ color: '#09090b' }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Database</div>
-                      <div style={{ fontSize: '11px', color: '#71717a' }}>Tables/queries that could be affected</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
-                    <span>{dbCount}</span>
-                    <ChevronRight size={16} />
-                  </div>
-                </div>
-
-                <div style={{ border: '1px solid #f4f4f5', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => onOpenImpact(targetName)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Beaker size={16} style={{ color: '#09090b' }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#09090b' }}>Tests</div>
-                      <div style={{ fontSize: '11px', color: '#71717a' }}>Relevant tests to run</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#71717a' }}>
-                    <span>{testCount}</span>
-                    <ChevronRight size={16} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card Footer Link */}
-              <button
-                onClick={() => onOpenImpact(targetName)}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #e4e4e7',
-                  borderRadius: '8px',
-                  padding: '8px 16px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#09090b',
-                  cursor: 'pointer',
-                  alignSelf: 'flex-start',
-                  marginTop: '4px',
-                }}
-              >
-                View full impact report →
-              </button>
             </div>
           </div>
 
